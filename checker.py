@@ -4,8 +4,15 @@ Harris County Appointment Checker
 Uses Playwright (headless browser) to check for available appointment slots.
 Runs on GitHub Actions every 15 minutes. No API keys. No cost.
 
-Approach: Navigate to the appointment page, select each branch, and read the
-calendar widget to find dates that aren't disabled/red (i.e., available).
+Approach:
+1. Navigate to the appointment page
+2. Click "Make Appointment" for the configured transaction type
+3. Dismiss the initial info popup (OK button)
+4. In the appointment form modal, select each branch from the dropdown
+5. Click the date input to open the jQuery UI datepicker calendar
+6. Read which dates are available (not red/disabled) from the calendar
+7. Navigate to next month(s) and repeat
+8. Email results
 """
 
 import json
@@ -151,47 +158,158 @@ Book page: {url}
 
 def get_available_dates_from_calendar(page):
     """
-    Read the visible calendar and return dates that are available (not disabled/red).
+    Read the visible datepicker calendar and return available (non-red) dates.
 
-    jQuery UI datepicker marks:
-    - Available dates: <td><a class="ui-state-default">15</a></td>
+    jQuery UI datepicker structure:
+    - Available dates:   <td data-handler="selectDay"><a class="ui-state-default">5</a></td>
     - Unavailable dates: <td class="ui-datepicker-unselectable ui-state-disabled">
-                            <span class="ui-state-default">15</span></td>
+                           <span class="ui-state-default">12</span></td>
 
-    So available dates have clickable <a> tags inside non-disabled <td> cells.
-    We also grab the month/year from the calendar header.
+    Available dates have clickable <a> tags; unavailable have <span> tags.
+    The month/year is in the calendar header (.ui-datepicker-title).
     """
-    results = page.evaluate("""() => {
+    return page.evaluate("""() => {
+        const picker = document.querySelector('.ui-datepicker');
+        if (!picker || picker.style.display === 'none') return [];
+
+        const titleEl = picker.querySelector('.ui-datepicker-title');
+        if (!titleEl) return [];
+        const monthYear = titleEl.textContent.trim();  // e.g. "April 2026"
+
+        // Available dates have <a> tags inside td[data-handler="selectDay"]
         const available = [];
-
-        // Handle both single and multi-month calendars
-        const groups = document.querySelectorAll('.ui-datepicker-group, .ui-datepicker:not(.ui-datepicker-multi)');
-        const containers = groups.length > 0 ? groups : [document.querySelector('.ui-datepicker')];
-
-        for (const container of containers) {
-            if (!container) continue;
-
-            // Get month and year from the header
-            const monthEl = container.querySelector('.ui-datepicker-month');
-            const yearEl = container.querySelector('.ui-datepicker-year');
-            if (!monthEl || !yearEl) continue;
-
-            const month = monthEl.textContent.trim();
-            const year = yearEl.textContent.trim();
-
-            // Find all clickable (available) date cells
-            const dateCells = container.querySelectorAll('td[data-handler="selectDay"] a.ui-state-default');
-            for (const cell of dateCells) {
-                const day = cell.textContent.trim();
-                if (day) {
-                    available.push(`${month} ${day}, ${year}`);
-                }
+        const cells = picker.querySelectorAll('td[data-handler="selectDay"] a.ui-state-default');
+        for (const cell of cells) {
+            const day = cell.textContent.trim();
+            if (day) {
+                available.push(monthYear + ' ' + day);  // e.g. "April 2026 5"
             }
         }
-
         return available;
     }""")
-    return results
+
+
+def navigate_calendar_next_month(page):
+    """Click the next-month arrow on the datepicker. Returns True if successful."""
+    next_btn = page.query_selector(".ui-datepicker-next")
+    if next_btn and next_btn.is_visible():
+        # Check if it's disabled (no more months)
+        classes = next_btn.get_attribute("class") or ""
+        if "ui-state-disabled" in classes:
+            return False
+        next_btn.click()
+        page.wait_for_timeout(1000)
+        return True
+    return False
+
+
+def check_branch(page, branch_name, branch_selector, date_input_selector, months_to_check):
+    """
+    Select a branch, open the calendar, read available dates for each visible month,
+    then navigate forward to check additional months.
+    """
+    print(f"\n  Selecting branch: {branch_name}")
+    available = []
+
+    try:
+        # Select the branch
+        page.select_option(branch_selector, label=branch_name)
+        page.wait_for_timeout(2000)
+
+        # Click the date input to open the datepicker calendar
+        date_input = page.query_selector(date_input_selector)
+        if not date_input:
+            print(f"    ERROR: Date input not found ({date_input_selector})")
+            return available
+
+        date_input.click()
+        page.wait_for_timeout(1500)
+
+        # Verify the datepicker is visible
+        picker = page.query_selector(".ui-datepicker")
+        if not picker or not picker.is_visible():
+            print(f"    ERROR: Datepicker did not open after clicking date input")
+            return available
+
+        # Check the current month and navigate forward
+        for month_idx in range(months_to_check):
+            dates = get_available_dates_from_calendar(page)
+            if dates:
+                print(f"    FOUND {len(dates)} available date(s): {dates}")
+                for d in dates:
+                    available.append({"branch": branch_name, "date": d})
+            else:
+                # Log which month had nothing
+                month_label = page.evaluate("""() => {
+                    const t = document.querySelector('.ui-datepicker-title');
+                    return t ? t.textContent.trim() : 'unknown';
+                }""")
+                print(f"    No available dates in {month_label}")
+
+            # Navigate to next month (if not the last iteration)
+            if month_idx < months_to_check - 1:
+                if not navigate_calendar_next_month(page):
+                    print(f"    No more months to check")
+                    break
+
+    except PlaywrightTimeout:
+        print(f"    Timeout while checking {branch_name}")
+    except Exception as e:
+        print(f"    Error with branch {branch_name}: {e}")
+
+    return available
+
+
+def find_element_by_candidates(page, candidates, description):
+    """Try a list of selectors and return the first one that matches."""
+    for sel in candidates:
+        el = page.query_selector(sel)
+        if el:
+            print(f"  Found {description}: {sel}")
+            return sel
+    return None
+
+
+def find_branch_dropdown(page, branches):
+    """Find the branch dropdown by trying known selectors, then by content matching."""
+    # Try common ID/name patterns
+    candidates = [
+        "#ExistBranch", "#BranchId", "#Branch", "#branch",
+        "#LocationId", "#Location",
+        "select[name*='ranch']",   # Matches Branch, branch
+        "select[name*='ocation']", # Matches Location, location
+    ]
+    result = find_element_by_candidates(page, candidates, "branch dropdown")
+    if result:
+        return result
+
+    # Fallback: find any <select> whose options contain a configured branch name
+    print("  Known selectors not found, scanning all dropdowns...")
+    selects = page.query_selector_all("select")
+    for sel_el in selects:
+        options_text = sel_el.evaluate(
+            "el => Array.from(el.options).map(o => o.text.trim().toLowerCase())"
+        )
+        for branch in branches:
+            if branch.lower() in options_text:
+                sel_id = sel_el.get_attribute("id")
+                sel_name = sel_el.get_attribute("name")
+                selector = f"#{sel_id}" if sel_id else f"select[name='{sel_name}']"
+                print(f"  Found branch dropdown by content match: {selector}")
+                return selector
+
+    return None
+
+
+def find_date_input(page):
+    """Find the date input field."""
+    candidates = [
+        "#ExistDate", "#AppointmentDate", "#Date", "#date",
+        "input[name*='ate']",           # Matches Date, date
+        "input[placeholder*='Date']",
+        "input.hasDatepicker",
+    ]
+    return find_element_by_candidates(page, candidates, "date input")
 
 
 def dump_page_state(page, label=""):
@@ -199,47 +317,32 @@ def dump_page_state(page, label=""):
     prefix = f"[{label}] " if label else ""
     print(f"\n{prefix}--- Page Diagnostics ---")
     print(f"{prefix}URL: {page.url}")
-    print(f"{prefix}Title: {page.title()}")
 
     diagnostics = page.evaluate("""() => {
         const info = {};
-
-        // Check for datepicker
         info.hasDatepicker = !!document.querySelector('.ui-datepicker');
-        info.hasDatepickerInline = !!document.querySelector('.ui-datepicker-inline');
+        info.datepickerVisible = (() => {
+            const dp = document.querySelector('.ui-datepicker');
+            return dp ? dp.style.display !== 'none' && dp.offsetParent !== null : false;
+        })();
 
-        // Check for select/dropdown elements
         const selects = document.querySelectorAll('select');
         info.selects = Array.from(selects).map(s => ({
             id: s.id, name: s.name,
             optionCount: s.options.length,
-            firstOptions: Array.from(s.options).slice(0, 5).map(o => o.text.trim())
+            sampleOptions: Array.from(s.options).slice(0, 5).map(o => o.text.trim())
         }));
 
-        // Check for visible modals/dialogs
-        const dialogs = document.querySelectorAll('[role="dialog"], .modal, .popup, .ui-dialog');
+        const inputs = document.querySelectorAll('input[type="text"], input:not([type])');
+        info.textInputs = Array.from(inputs).slice(0, 10).map(i => ({
+            id: i.id, name: i.name,
+            placeholder: i.placeholder,
+            hasDatepickerClass: i.classList.contains('hasDatepicker')
+        }));
+
+        const dialogs = document.querySelectorAll('[role="dialog"], .modal, .ui-dialog');
         info.dialogCount = dialogs.length;
-
-        // Check for buttons
-        const buttons = document.querySelectorAll('button, input[type="button"], input[type="submit"]');
-        info.buttons = Array.from(buttons).slice(0, 10).map(b => ({
-            text: (b.textContent || b.value || '').trim().substring(0, 50),
-            visible: b.offsetParent !== null
-        }));
-
-        // Check for links with appointment-related text
-        const links = document.querySelectorAll('a');
-        info.appointmentLinks = Array.from(links)
-            .filter(a => /appointment|book|schedule/i.test(a.textContent || ''))
-            .map(a => ({text: a.textContent.trim().substring(0, 50), href: a.href}));
-
-        // Check for calendar-related elements
-        info.calendarElements = {
-            uiDatepicker: document.querySelectorAll('.ui-datepicker').length,
-            calendarTable: document.querySelectorAll('.ui-datepicker-calendar').length,
-            availableDays: document.querySelectorAll('td[data-handler="selectDay"]').length,
-            disabledDays: document.querySelectorAll('td.ui-datepicker-unselectable').length,
-        };
+        info.visibleDialogs = Array.from(dialogs).filter(d => d.offsetParent !== null).length;
 
         return info;
     }""")
@@ -249,43 +352,15 @@ def dump_page_state(page, label=""):
     print(f"{prefix}--- End Diagnostics ---\n")
 
 
-def check_branch(page, branch_name, branch_dropdown_selector):
-    """
-    Select a branch from the dropdown, wait for the calendar to update,
-    and return available dates.
-    """
-    print(f"\n  Selecting branch: {branch_name}")
-    available = []
-
-    try:
-        page.select_option(branch_dropdown_selector, label=branch_name)
-        # Wait for calendar to react to branch selection
-        page.wait_for_timeout(3000)
-
-        dates = get_available_dates_from_calendar(page)
-        if dates:
-            print(f"    FOUND {len(dates)} available date(s): {dates}")
-            for d in dates:
-                available.append({"branch": branch_name, "date": d})
-        else:
-            print(f"    No available dates on the calendar.")
-
-    except PlaywrightTimeout:
-        print(f"    Timeout selecting branch {branch_name}")
-    except Exception as e:
-        print(f"    Error with branch {branch_name}: {e}")
-
-    return available
-
-
 def main():
-    print(f"=== Harris County Appointment Checker ===")
+    print("=== Harris County Appointment Checker ===")
     print(f"=== {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')} ===\n")
 
     config = load_config()
     url = config["url"]
     branches = config.get("branches", [])
     transaction_type = config.get("transaction_type", "")
+    months_to_check = config.get("months_to_check", 2)
 
     if not branches:
         print("ERROR: No branches configured in config.json")
@@ -305,17 +380,14 @@ def main():
         page = ctx.new_page()
 
         try:
-            # Step 1: Load the page
+            # Step 1: Load the appointment page
             print(f"Loading: {url}")
             page.goto(url, wait_until="networkidle", timeout=30000)
             page.wait_for_timeout(2000)
 
-            dump_page_state(page, "After page load")
-
             # Step 2: Click "Make Appointment" for the transaction type
             print(f"Looking for transaction: {transaction_type}")
             clicked = False
-
             rows = page.query_selector_all("table tr")
             for row in rows:
                 text = row.inner_text()
@@ -329,9 +401,8 @@ def main():
                         break
 
             if not clicked:
-                # Fallback: look for any "Make Appointment" link
-                links = page.query_selector_all("a")
-                for link in links:
+                # Fallback: any "Make Appointment" link
+                for link in page.query_selector_all("a"):
                     if "make appointment" in (link.inner_text() or "").lower():
                         link.click()
                         page.wait_for_timeout(2000)
@@ -340,79 +411,57 @@ def main():
                         break
 
             if not clicked:
-                print("WARNING: Could not find 'Make Appointment' button")
+                print("ERROR: Could not find 'Make Appointment' button")
                 dump_page_state(page, "No button found")
+                browser.close()
+                sys.exit(1)
 
-            # Step 3: Dismiss any popups/modals (click OK/Close buttons)
+            # Step 3: Dismiss the initial info popup (click OK)
+            # This is the first popup that appears - NOT the appointment form.
+            # We only dismiss popups with "ok" text, not "close" (close would
+            # dismiss the appointment form itself).
             for attempt in range(3):
-                ok_buttons = page.query_selector_all("button, input[type='button']")
                 dismissed = False
-                for btn in ok_buttons:
+                for btn in page.query_selector_all("button, input[type='button']"):
                     btn_text = (btn.inner_text() or btn.get_attribute("value") or "").strip().lower()
-                    if btn_text in ("ok", "close", "accept", "continue", "i agree"):
-                        if btn.is_visible():
-                            btn.click()
-                            page.wait_for_timeout(1500)
-                            print(f"Dismissed dialog (clicked '{btn_text}')")
-                            dismissed = True
-                            break
+                    if btn_text == "ok" and btn.is_visible():
+                        btn.click()
+                        page.wait_for_timeout(1500)
+                        print(f"Dismissed popup (clicked 'OK')")
+                        dismissed = True
+                        break
                 if not dismissed:
                     break
 
-            dump_page_state(page, "After popups dismissed")
+            # Now we should be on the appointment form modal
+            dump_page_state(page, "Appointment form")
 
-            # Step 4: Find the branch/location dropdown
-            # Try common selectors - we'll log what we find
-            branch_selector = None
-            candidate_selectors = [
-                "#ExistBranch",
-                "#BranchId",
-                "#Branch",
-                "#LocationId",
-                "#Location",
-                "select[name*='branch' i]",
-                "select[name*='location' i]",
-            ]
-
-            for sel in candidate_selectors:
-                el = page.query_selector(sel)
-                if el:
-                    branch_selector = sel
-                    print(f"Found branch dropdown: {sel}")
-                    break
-
+            # Step 4: Find the branch dropdown and date input
+            branch_selector = find_branch_dropdown(page, branches)
             if not branch_selector:
-                # Fallback: find any select with options matching branch names
-                print("Standard selectors not found, searching all dropdowns...")
-                selects = page.query_selector_all("select")
-                for sel_el in selects:
-                    options_text = sel_el.evaluate("""el =>
-                        Array.from(el.options).map(o => o.text.trim().toLowerCase())
-                    """)
-                    # Check if any configured branch appears in this dropdown
-                    for branch in branches:
-                        if branch.lower() in options_text:
-                            sel_id = sel_el.get_attribute("id")
-                            sel_name = sel_el.get_attribute("name")
-                            branch_selector = f"#{sel_id}" if sel_id else f"select[name='{sel_name}']"
-                            print(f"Found branch dropdown by content match: {branch_selector}")
-                            break
-                    if branch_selector:
-                        break
+                print("ERROR: Could not find branch dropdown")
+                dump_page_state(page, "No branch dropdown")
+                page.screenshot(path="debug_no_branch.png")
+                print("Saved debug screenshot: debug_no_branch.png")
+                browser.close()
+                sys.exit(1)
 
-            if not branch_selector:
-                print("ERROR: Could not find branch/location dropdown on the page.")
-                dump_page_state(page, "No dropdown found")
-                # Take a screenshot for debugging
-                page.screenshot(path="debug_screenshot.png")
-                print("Saved debug screenshot to debug_screenshot.png")
+            date_input_selector = find_date_input(page)
+            if not date_input_selector:
+                print("ERROR: Could not find date input field")
+                dump_page_state(page, "No date input")
+                page.screenshot(path="debug_no_date.png")
+                print("Saved debug screenshot: debug_no_date.png")
                 browser.close()
                 sys.exit(1)
 
             # Step 5: Check each branch
             for branch in branches:
                 print(f"\nChecking branch: {branch}")
-                slots = check_branch(page, branch, branch_selector)
+                slots = check_branch(
+                    page, branch, branch_selector,
+                    date_input_selector, months_to_check
+                )
                 all_available.extend(slots)
 
         except PlaywrightTimeout:
@@ -424,7 +473,7 @@ def main():
         finally:
             browser.close()
 
-    # Report results
+    # Report results and send email
     print(f"\n{'='*50}")
     if all_available:
         total = len(all_available)
