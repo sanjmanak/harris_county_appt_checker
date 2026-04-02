@@ -4,7 +4,11 @@
   "transaction_type": "New Resident (First time TX registration)",
 
   "branches": [
-    "Downtown"
+    "Downtown",
+    "Burnett Bayland",
+    "Spring Branch",
+    "Palm Center",
+    "Mickey Leland"
   ],
 
   "months_to_check": 2,
