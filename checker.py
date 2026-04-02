@@ -272,12 +272,11 @@ def find_element_by_candidates(page, candidates, description):
 
 def find_branch_dropdown(page, branches):
     """Find the branch dropdown by trying known selectors, then by content matching."""
-    # Try common ID/name patterns
+    # Try known IDs first (ABranch confirmed from diagnostics), then common patterns
     candidates = [
+        "#ABranch",
         "#ExistBranch", "#BranchId", "#Branch", "#branch",
         "#LocationId", "#Location",
-        "select[name*='ranch']",   # Matches Branch, branch
-        "select[name*='ocation']", # Matches Location, location
     ]
     result = find_element_by_candidates(page, candidates, "branch dropdown")
     if result:
@@ -303,11 +302,12 @@ def find_branch_dropdown(page, branches):
 
 def find_date_input(page):
     """Find the date input field."""
+    # DatePicker confirmed from diagnostics; try known IDs first
     candidates = [
+        "#DatePicker",
         "#ExistDate", "#AppointmentDate", "#Date", "#date",
-        "input[name*='ate']",           # Matches Date, date
-        "input[placeholder*='Date']",
         "input.hasDatepicker",
+        "input[placeholder*='Date']",
     ]
     return find_element_by_candidates(page, candidates, "date input")
 
