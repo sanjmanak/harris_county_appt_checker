@@ -3,6 +3,16 @@
 Harris County Appointment Checker
 Uses Playwright (headless browser) to check for available appointment slots.
 Runs on GitHub Actions every 15 minutes. No API keys. No cost.
+
+Approach:
+1. Navigate to the appointment page
+2. Click "Make Appointment" for the configured transaction type
+3. Dismiss the initial info popup (OK button)
+4. In the appointment form modal, select each branch from the dropdown
+5. Click the date input to open the jQuery UI datepicker calendar
+6. Read which dates are available (not red/disabled) from the calendar
+7. Navigate to next month(s) and repeat
+8. Email results
 """
 
 import json
@@ -10,7 +20,8 @@ import os
 import smtplib
 import ssl
 import sys
-from datetime import datetime, timezone, timedelta
+import html
+from datetime import datetime, timezone
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
@@ -18,51 +29,79 @@ from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeo
 
 def load_config():
     config_path = os.path.join(os.path.dirname(__file__), "config.json")
-    with open(config_path, "r") as f:
-        return json.load(f)
+    try:
+        with open(config_path, "r") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print("ERROR: config.json not found.")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"ERROR: config.json is not valid JSON: {e}")
+        sys.exit(1)
 
 
-def send_email(config, available_slots, url):
-    """Send notification email via Gmail SMTP."""
-    sender = os.environ.get("EMAIL_ADDRESS")
-    password = os.environ.get("EMAIL_APP_PASSWORD")
-    recipient = os.environ.get("NOTIFY_EMAIL")
+def send_email(config, subject, text_body, html_body):
+    """Send notification email via Gmail SMTP. Returns True on success."""
+    sender = os.environ.get("EMAIL_ADDRESS", "").strip()
+    password = os.environ.get("EMAIL_APP_PASSWORD", "").strip()
+    recipient = os.environ.get("NOTIFY_EMAIL", "").strip()
 
-    if not all([sender, password, recipient]):
-        print("ERROR: Missing email environment variables.")
+    if not sender or not password or not recipient:
+        print("ERROR: Missing or empty email environment variables.")
         print("Required: EMAIL_ADDRESS, EMAIL_APP_PASSWORD, NOTIFY_EMAIL")
         return False
-
-    subject = config.get("notify_subject", "Appointment Available!")
-
-    slots_text = "\n".join(
-        f"  - {s['branch']} on {s['date']}: {', '.join(s['times'])}"
-        for s in available_slots
-    )
-    slots_html = "".join(
-        f"<li><strong>{s['branch']}</strong> on {s['date']}: {', '.join(s['times'])}</li>"
-        for s in available_slots
-    )
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = sender
     msg["To"] = recipient
+    msg.attach(MIMEText(text_body, "plain"))
+    msg.attach(MIMEText(html_body, "html"))
 
-    text_body = f"""
-Appointment slots found!
+    try:
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=30) as server:
+            server.login(sender, password)
+            server.sendmail(sender, recipient, msg.as_string())
+        print(f"Email sent to {recipient}")
+        return True
+    except smtplib.SMTPAuthenticationError:
+        print("ERROR: Email login failed. Check EMAIL_ADDRESS and EMAIL_APP_PASSWORD.")
+        return False
+    except smtplib.SMTPException as e:
+        print(f"ERROR: SMTP error: {e}")
+        return False
+    except OSError as e:
+        print(f"ERROR: Network error sending email: {e}")
+        return False
+
+
+def build_found_email(config, available_slots, url):
+    """Build email content for when slots are found."""
+    subject = config.get("notify_subject", "Appointment Available!")
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    slots_text = "\n".join(
+        f"  - {s['branch']} on {s['date']}"
+        for s in available_slots
+    )
+    slots_html = "".join(
+        f"<li><strong>{html.escape(s['branch'])}</strong> on {html.escape(s['date'])}</li>"
+        for s in available_slots
+    )
+
+    text_body = f"""Appointment slots found!
 
 {slots_text}
 
 Book now: {url}
-Checked at: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}
+Checked at: {now}
 
 ---
 To stop alerts, disable the workflow in your repo's Actions tab.
 """
 
-    html_body = f"""
-<html>
+    html_body = f"""<html>
 <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
     <div style="background: #10b981; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
         <h1 style="margin: 0;">Appointment Slots Found!</h1>
@@ -70,112 +109,258 @@ To stop alerts, disable the workflow in your repo's Actions tab.
     <div style="padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
         <ul>{slots_html}</ul>
         <p style="text-align: center; margin: 30px 0;">
-            <a href="{url}"
+            <a href="{html.escape(url)}"
                style="background: #10b981; color: white; padding: 14px 28px;
                       text-decoration: none; border-radius: 6px; font-size: 18px;">
                 Book Now
             </a>
         </p>
         <p style="color: #6b7280; font-size: 12px;">
-            Checked at {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}.
+            Checked at {now}.
             To stop alerts, disable the workflow in your repo's Actions tab.
         </p>
     </div>
 </body>
-</html>
+</html>"""
+
+    return subject, text_body, html_body
+
+
+def build_none_found_email(config, branches_checked, url):
+    """Build email content for when no slots are found."""
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    branch_list = ", ".join(branches_checked)
+
+    text_body = f"""No appointment slots found.
+
+Checked branches: {branch_list}
+Checked at: {now}
+
+Will check again next run (every 15 minutes).
+Book page: {url}
 """
 
-    msg.attach(MIMEText(text_body, "plain"))
-    msg.attach(MIMEText(html_body, "html"))
+    html_body = f"""<html>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    <div style="background: #6b7280; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+        <h1 style="margin: 0;">No Appointments Found</h1>
+    </div>
+    <div style="padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+        <p>Checked branches: {html.escape(branch_list)}</p>
+        <p>Checked at: {now}</p>
+        <p>Will check again next run (every 15 minutes).</p>
+    </div>
+</body>
+</html>"""
 
-    try:
-        context = ssl.create_default_context()
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-            server.login(sender, password)
-            server.sendmail(sender, recipient, msg.as_string())
-        print(f"Email sent to {recipient}")
+    return "No Appointments Found", text_body, html_body
+
+
+def get_available_dates_from_calendar(page):
+    """
+    Read the visible datepicker calendar and return available (non-red) dates.
+
+    jQuery UI datepicker structure:
+    - Available dates:   <td data-handler="selectDay"><a class="ui-state-default">5</a></td>
+    - Unavailable dates: <td class="ui-datepicker-unselectable ui-state-disabled">
+                           <span class="ui-state-default">12</span></td>
+
+    Available dates have clickable <a> tags; unavailable have <span> tags.
+    The month/year is in the calendar header (.ui-datepicker-title).
+    """
+    return page.evaluate("""() => {
+        const picker = document.querySelector('.ui-datepicker');
+        if (!picker || picker.style.display === 'none') return [];
+
+        const titleEl = picker.querySelector('.ui-datepicker-title');
+        if (!titleEl) return [];
+        const monthYear = titleEl.textContent.trim();  // e.g. "April 2026"
+
+        // Available dates have <a> tags inside td[data-handler="selectDay"]
+        const available = [];
+        const cells = picker.querySelectorAll('td[data-handler="selectDay"] a.ui-state-default');
+        for (const cell of cells) {
+            const day = cell.textContent.trim();
+            if (day) {
+                available.push(monthYear + ' ' + day);  // e.g. "April 2026 5"
+            }
+        }
+        return available;
+    }""")
+
+
+def navigate_calendar_next_month(page):
+    """Click the next-month arrow on the datepicker. Returns True if successful."""
+    next_btn = page.query_selector(".ui-datepicker-next")
+    if next_btn and next_btn.is_visible():
+        # Check if it's disabled (no more months)
+        classes = next_btn.get_attribute("class") or ""
+        if "ui-state-disabled" in classes:
+            return False
+        next_btn.click()
+        page.wait_for_timeout(1000)
         return True
-    except Exception as e:
-        print(f"Failed to send email: {e}")
-        return False
+    return False
 
 
-def check_branch(page, branch_name, config):
+def check_branch(page, branch_name, branch_selector, date_input_selector, months_to_check):
     """
-    Select a branch, then scan the next N days for any available time slots.
-    Returns a list of {branch, date, times} dicts.
+    Select a branch, open the calendar, read available dates for each visible month,
+    then navigate forward to check additional months.
     """
-    days_to_check = config.get("days_to_check", 30)
+    print(f"\n  Selecting branch: {branch_name}")
     available = []
 
-    print(f"  Selecting branch: {branch_name}")
-
     try:
-        # Select the branch from the dropdown
-        page.select_option("#ExistBranch", label=branch_name)
+        # Select the branch
+        page.select_option(branch_selector, label=branch_name)
         page.wait_for_timeout(2000)
 
-        datepicker = page.query_selector("#ExistDate")
-        if not datepicker:
-            print(f"  Could not find date picker for {branch_name}")
+        # Click the date input to open the datepicker calendar
+        date_input = page.query_selector(date_input_selector)
+        if not date_input:
+            print(f"    ERROR: Date input not found ({date_input_selector})")
             return available
 
-        datepicker.click()
-        page.wait_for_timeout(1000)
+        date_input.click()
+        page.wait_for_timeout(1500)
 
-        today = datetime.now()
+        # Verify the datepicker is visible
+        picker = page.query_selector(".ui-datepicker")
+        if not picker or not picker.is_visible():
+            print(f"    ERROR: Datepicker did not open after clicking date input")
+            return available
 
-        for day_offset in range(1, days_to_check + 1):
-            check_date = today + timedelta(days=day_offset)
-            date_str = check_date.strftime("%m/%d/%Y")
+        # Check the current month and navigate forward
+        for month_idx in range(months_to_check):
+            dates = get_available_dates_from_calendar(page)
+            if dates:
+                print(f"    FOUND {len(dates)} available date(s): {dates}")
+                for d in dates:
+                    available.append({"branch": branch_name, "date": d})
+            else:
+                # Log which month had nothing
+                month_label = page.evaluate("""() => {
+                    const t = document.querySelector('.ui-datepicker-title');
+                    return t ? t.textContent.trim() : 'unknown';
+                }""")
+                print(f"    No available dates in {month_label}")
 
-            try:
-                page.evaluate(f"""
-                    const input = document.querySelector('#ExistDate');
-                    if (input) {{
-                        input.value = '{date_str}';
-                        input.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                    }}
-                """)
-                page.wait_for_timeout(1500)
+            # Navigate to next month (if not the last iteration)
+            if month_idx < months_to_check - 1:
+                if not navigate_calendar_next_month(page):
+                    print(f"    No more months to check")
+                    break
 
-                time_options = page.evaluate("""
-                    const select = document.querySelector('#ExistTime');
-                    if (!select) return [];
-                    return Array.from(select.options)
-                        .filter(o => o.value && o.value !== '' && !o.disabled)
-                        .map(o => o.text.trim())
-                        .filter(t => t !== '' && !t.toLowerCase().includes('select'));
-                """)
-
-                if time_options:
-                    print(f"    FOUND slots on {date_str}: {time_options}")
-                    available.append({
-                        "branch": branch_name,
-                        "date": date_str,
-                        "times": time_options
-                    })
-                else:
-                    print(f"    No slots on {date_str}")
-
-            except Exception as e:
-                print(f"    Error checking {date_str}: {e}")
-                continue
-
+    except PlaywrightTimeout:
+        print(f"    Timeout while checking {branch_name}")
     except Exception as e:
-        print(f"  Error with branch {branch_name}: {e}")
+        print(f"    Error with branch {branch_name}: {e}")
 
     return available
 
 
+def find_element_by_candidates(page, candidates, description):
+    """Try a list of selectors and return the first one that matches."""
+    for sel in candidates:
+        el = page.query_selector(sel)
+        if el:
+            print(f"  Found {description}: {sel}")
+            return sel
+    return None
+
+
+def find_branch_dropdown(page, branches):
+    """Find the branch dropdown by trying known selectors, then by content matching."""
+    # Try common ID/name patterns
+    candidates = [
+        "#ExistBranch", "#BranchId", "#Branch", "#branch",
+        "#LocationId", "#Location",
+        "select[name*='ranch']",   # Matches Branch, branch
+        "select[name*='ocation']", # Matches Location, location
+    ]
+    result = find_element_by_candidates(page, candidates, "branch dropdown")
+    if result:
+        return result
+
+    # Fallback: find any <select> whose options contain a configured branch name
+    print("  Known selectors not found, scanning all dropdowns...")
+    selects = page.query_selector_all("select")
+    for sel_el in selects:
+        options_text = sel_el.evaluate(
+            "el => Array.from(el.options).map(o => o.text.trim().toLowerCase())"
+        )
+        for branch in branches:
+            if branch.lower() in options_text:
+                sel_id = sel_el.get_attribute("id")
+                sel_name = sel_el.get_attribute("name")
+                selector = f"#{sel_id}" if sel_id else f"select[name='{sel_name}']"
+                print(f"  Found branch dropdown by content match: {selector}")
+                return selector
+
+    return None
+
+
+def find_date_input(page):
+    """Find the date input field."""
+    candidates = [
+        "#ExistDate", "#AppointmentDate", "#Date", "#date",
+        "input[name*='ate']",           # Matches Date, date
+        "input[placeholder*='Date']",
+        "input.hasDatepicker",
+    ]
+    return find_element_by_candidates(page, candidates, "date input")
+
+
+def dump_page_state(page, label=""):
+    """Log diagnostic info about the current page state."""
+    prefix = f"[{label}] " if label else ""
+    print(f"\n{prefix}--- Page Diagnostics ---")
+    print(f"{prefix}URL: {page.url}")
+
+    diagnostics = page.evaluate("""() => {
+        const info = {};
+        info.hasDatepicker = !!document.querySelector('.ui-datepicker');
+        info.datepickerVisible = (() => {
+            const dp = document.querySelector('.ui-datepicker');
+            return dp ? dp.style.display !== 'none' && dp.offsetParent !== null : false;
+        })();
+
+        const selects = document.querySelectorAll('select');
+        info.selects = Array.from(selects).map(s => ({
+            id: s.id, name: s.name,
+            optionCount: s.options.length,
+            sampleOptions: Array.from(s.options).slice(0, 5).map(o => o.text.trim())
+        }));
+
+        const inputs = document.querySelectorAll('input[type="text"], input:not([type])');
+        info.textInputs = Array.from(inputs).slice(0, 10).map(i => ({
+            id: i.id, name: i.name,
+            placeholder: i.placeholder,
+            hasDatepickerClass: i.classList.contains('hasDatepicker')
+        }));
+
+        const dialogs = document.querySelectorAll('[role="dialog"], .modal, .ui-dialog');
+        info.dialogCount = dialogs.length;
+        info.visibleDialogs = Array.from(dialogs).filter(d => d.offsetParent !== null).length;
+
+        return info;
+    }""")
+
+    for key, val in diagnostics.items():
+        print(f"{prefix}{key}: {json.dumps(val, indent=2) if isinstance(val, (dict, list)) else val}")
+    print(f"{prefix}--- End Diagnostics ---\n")
+
+
 def main():
-    print(f"=== Harris County Appointment Checker ===")
+    print("=== Harris County Appointment Checker ===")
     print(f"=== {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')} ===\n")
 
     config = load_config()
     url = config["url"]
     branches = config.get("branches", [])
-    transaction_type = config.get("transaction_type", "New Resident (First time TX registration)")
+    transaction_type = config.get("transaction_type", "")
+    months_to_check = config.get("months_to_check", 2)
 
     if not branches:
         print("ERROR: No branches configured in config.json")
@@ -195,19 +380,19 @@ def main():
         page = ctx.new_page()
 
         try:
+            # Step 1: Load the appointment page
             print(f"Loading: {url}")
             page.goto(url, wait_until="networkidle", timeout=30000)
-            page.wait_for_timeout(3000)
+            page.wait_for_timeout(2000)
 
-            # Click the "Make Appointment" button for the transaction type
+            # Step 2: Click "Make Appointment" for the transaction type
             print(f"Looking for transaction: {transaction_type}")
-
-            rows = page.query_selector_all("table tr")
             clicked = False
+            rows = page.query_selector_all("table tr")
             for row in rows:
                 text = row.inner_text()
                 if transaction_type.lower() in text.lower():
-                    btn = row.query_selector("a, button, input[type='button']")
+                    btn = row.query_selector("a, button, input[type='button'], input[type='submit']")
                     if btn:
                         btn.click()
                         page.wait_for_timeout(2000)
@@ -216,53 +401,96 @@ def main():
                         break
 
             if not clicked:
-                links = page.query_selector_all("a")
-                for link in links:
+                # Fallback: any "Make Appointment" link
+                for link in page.query_selector_all("a"):
                     if "make appointment" in (link.inner_text() or "").lower():
                         link.click()
                         page.wait_for_timeout(2000)
                         clicked = True
-                        print("Clicked generic Make Appointment link")
+                        print("Clicked generic 'Make Appointment' link")
                         break
 
-            # Dismiss any info popup
-            ok_buttons = page.query_selector_all("button")
-            for btn in ok_buttons:
-                if (btn.inner_text() or "").strip().lower() == "ok":
-                    if btn.is_visible():
+            if not clicked:
+                print("ERROR: Could not find 'Make Appointment' button")
+                dump_page_state(page, "No button found")
+                browser.close()
+                sys.exit(1)
+
+            # Step 3: Dismiss the initial info popup (click OK)
+            # This is the first popup that appears - NOT the appointment form.
+            # We only dismiss popups with "ok" text, not "close" (close would
+            # dismiss the appointment form itself).
+            for attempt in range(3):
+                dismissed = False
+                for btn in page.query_selector_all("button, input[type='button']"):
+                    btn_text = (btn.inner_text() or btn.get_attribute("value") or "").strip().lower()
+                    if btn_text == "ok" and btn.is_visible():
                         btn.click()
-                        page.wait_for_timeout(1000)
-                        print("Dismissed info dialog")
+                        page.wait_for_timeout(1500)
+                        print(f"Dismissed popup (clicked 'OK')")
+                        dismissed = True
                         break
+                if not dismissed:
+                    break
 
-            # Check each configured branch
+            # Now we should be on the appointment form modal
+            dump_page_state(page, "Appointment form")
+
+            # Step 4: Find the branch dropdown and date input
+            branch_selector = find_branch_dropdown(page, branches)
+            if not branch_selector:
+                print("ERROR: Could not find branch dropdown")
+                dump_page_state(page, "No branch dropdown")
+                page.screenshot(path="debug_no_branch.png")
+                print("Saved debug screenshot: debug_no_branch.png")
+                browser.close()
+                sys.exit(1)
+
+            date_input_selector = find_date_input(page)
+            if not date_input_selector:
+                print("ERROR: Could not find date input field")
+                dump_page_state(page, "No date input")
+                page.screenshot(path="debug_no_date.png")
+                print("Saved debug screenshot: debug_no_date.png")
+                browser.close()
+                sys.exit(1)
+
+            # Step 5: Check each branch
             for branch in branches:
                 print(f"\nChecking branch: {branch}")
-                slots = check_branch(page, branch, config)
+                slots = check_branch(
+                    page, branch, branch_selector,
+                    date_input_selector, months_to_check
+                )
                 all_available.extend(slots)
 
         except PlaywrightTimeout:
-            print("Page load timed out")
+            print("ERROR: Page load timed out (30s)")
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"ERROR: {e}")
+            import traceback
+            traceback.print_exc()
         finally:
             browser.close()
 
+    # Report results and send email
     print(f"\n{'='*50}")
     if all_available:
-        total_slots = sum(len(s["times"]) for s in all_available)
-        print(f"FOUND {total_slots} available slot(s) across {len(all_available)} date(s)!")
+        total = len(all_available)
+        print(f"FOUND {total} available date(s)!")
         for slot in all_available:
-            print(f"  {slot['branch']} - {slot['date']}: {', '.join(slot['times'])}")
+            print(f"  {slot['branch']} - {slot['date']}")
 
-        sent = send_email(config, all_available, url)
-        if sent:
-            print("\nNotification sent!")
-        else:
-            print("\nFailed to send notification.")
-            sys.exit(1)
+        subject, text_body, html_body = build_found_email(config, all_available, url)
+        sent = send_email(config, subject, text_body, html_body)
+        if not sent:
+            print("\nWARNING: Failed to send notification email.")
     else:
-        print("No appointments found. Will check again next run.")
+        print("No appointments found.")
+        subject, text_body, html_body = build_none_found_email(config, branches, url)
+        sent = send_email(config, subject, text_body, html_body)
+        if not sent:
+            print("\nWARNING: Failed to send 'none found' email.")
 
 
 if __name__ == "__main__":

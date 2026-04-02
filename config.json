@@ -4,25 +4,10 @@
   "transaction_type": "New Resident (First time TX registration)",
 
   "branches": [
-    "Bay Area",
-    "Baytown",
-    "Burnett Bayland",
-    "Clay Road",
-    "Cypress Hill",
-    "Humble",
-    "Jim Fonteno",
-    "John Phelps",
-    "Kyle Chapman",
-    "Mickey Leland",
-    "Palm Center",
-    "Raul Martinez",
-    "Scarsdale",
-    "Spring Branch",
-    "Tomball",
     "Downtown"
   ],
 
-  "days_to_check": 30,
+  "months_to_check": 2,
 
   "notify_subject": "🚨 Harris County Auto Appointment Available!"
 }
