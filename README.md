@@ -1,8 +1,31 @@
 # Harris County Appointment Checker
 
-A zero-cost appointment monitor that checks the Harris County Tax Office for available auto appointment slots every 15 minutes and emails you when one opens up.
+A zero-cost automated monitor that checks the Harris County Tax Office website for available auto appointment slots and emails you the results — whether it finds openings or not.
 
 Runs entirely on GitHub Actions. No local machine. No servers. No API keys.
+
+## How It Works
+
+```
+GitHub Actions (cron every 30 min)
+  └─> Playwright (headless Chromium)
+        ├─ Navigates to hctax.net appointment page
+        ├─ Clicks "Make Appointment" for your transaction type
+        ├─ Dismisses the info popup
+        └─ For each configured branch:
+             ├─ Selects the branch from the dropdown (#ABranch)
+             ├─ Clicks the date input (#DatePicker) to open the calendar
+             ├─ Reads the jQuery UI datepicker in one DOM query:
+             │     Available dates → <td data-handler="selectDay"><a>5</a></td>
+             │     Unavailable (red) → <td class="ui-datepicker-unselectable"><span>12</span></td>
+             ├─ Navigates to the next month via the ► arrow
+             └─ Repeats for configured number of months
+  └─> Gmail SMTP
+        ├─ Slots found → styled HTML email with dates + "Book Now" link
+        └─ No slots → "No Appointments Found" email so you know it ran
+```
+
+The calendar-reading approach checks all dates in a month with a single DOM query instead of testing each date individually. A full run across 5 branches typically completes in under 30 seconds.
 
 ## What You Need
 
@@ -45,9 +68,15 @@ Edit `config.json`:
 {
   "url": "https://www.hctax.net/Auto/Appointments/Appointment",
   "transaction_type": "New Resident (First time TX registration)",
-  "branches": ["Spring Branch", "Clay Road", "Downtown"],
-  "days_to_check": 30,
-  "notify_subject": "🚨 Harris County Appointment Available!"
+  "branches": [
+    "Downtown",
+    "Burnett Bayland",
+    "Spring Branch",
+    "Palm Center",
+    "Mickey Leland"
+  ],
+  "months_to_check": 2,
+  "notify_subject": "🚨 Harris County Auto Appointment Available!"
 }
 ```
 
@@ -58,32 +87,57 @@ Edit `config.json`:
 - `NMVITS/State Rej`
 - `Hold file/2nd floor`
 
-**branches** — which locations to check. Remove any you don't want. All 16 branches are listed by default. Fewer branches = faster checks.
+**branches** — which locations to check. All 16 Harris County branches are supported. Fewer branches = faster checks. The default set covers locations near central Houston / Montrose.
 
-**days_to_check** — how far ahead to look (default: 30 days).
+**months_to_check** — how many calendar months to scan per branch (default: 2). The checker reads the current month, then clicks the next-month arrow to check additional months.
 
 ### Step 5: Enable the workflow
 
 Go to the **Actions** tab and enable workflows if prompted. You can also click **"Run workflow"** to test it immediately.
 
-## How It Works
+## Email Notifications
 
-1. Every 15 minutes, GitHub Actions spins up a headless Chrome browser
-2. It navigates to the appointment page
-3. Selects your transaction type
-4. Checks each branch you configured, scanning dates for open time slots
-5. If it finds any → you get an email with branch, date, and available times
-6. If not → it quietly waits and checks again
+You get an email every run:
+
+- **Slots found** — styled HTML email listing each branch + available dates, with a direct "Book Now" link to the appointment page
+- **No slots found** — brief email confirming the checker ran and found nothing, so you know it's still working
+
+## Error Handling
+
+| Scenario | Behavior |
+|---|---|
+| Missing/malformed `config.json` | Exits with clear error message |
+| Missing or empty email secrets | Logs which variables are missing, skips email |
+| Wrong Gmail app password | Specific "authentication failed" error (not generic) |
+| Gmail SMTP down or slow | 30-second timeout, logs network error |
+| Page load timeout | 30-second limit, logs and exits cleanly |
+| Branch not found in dropdown | Auto-discovers dropdown by ID, then by content matching |
+| Calendar doesn't open | Logs error, moves to next branch |
+
+The workflow always exits cleanly (exit 0) so a temporary email failure doesn't show as a failed GitHub Actions run.
 
 ## Cost
 
-**$0.** GitHub Actions free tier gives you 2,000 minutes/month. Each run takes ~2-5 minutes depending on how many branches you check. Checking 4 branches every 15 min ≈ 800 min/month — well within free tier.
+**$0.** GitHub Actions free tier gives you 2,000 minutes/month. Each run takes ~30 seconds for 5 branches. Running every 30 minutes ≈ 24 min/month — well within free tier.
 
-**Tip:** To stay comfortably in free tier, trim your branches list to just 3-5 preferred locations.
+## Architecture
+
+```
+harris_county_appt_checker/
+├── .github/workflows/check.yml   # GitHub Actions workflow (cron schedule)
+├── checker.py                     # Main script (Playwright + SMTP)
+├── config.json                    # User configuration (branches, transaction type)
+├── README.md
+└── LICENSE
+```
+
+- **checker.py** — Single-file Python script. Uses Playwright to drive a headless Chromium browser and Python's built-in `smtplib` for email. No external dependencies beyond Playwright.
+- **check.yml** — GitHub Actions workflow that installs Python + Playwright, injects email secrets as env vars, and runs the checker on a cron schedule.
+- **config.json** — All user-configurable options (URL, transaction type, branches, months to check, email subject).
 
 ## Customizing
 
-This pattern works for any appointment page that loads availability dynamically. Fork it and adapt `checker.py` for DMV sites, visa appointments, or anything with limited slots.
+This pattern works for any appointment page that uses a jQuery UI datepicker or similar calendar widget. Fork it and adapt `checker.py` for DMV sites, visa appointments, or anything with limited slots.
 
 ## Stopping It
 
