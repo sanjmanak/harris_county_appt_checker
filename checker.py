@@ -76,38 +76,73 @@ def send_email(config, subject, text_body, html_body):
         return False
 
 
+def group_slots_by_month(available_slots):
+    """Group slots by month name (e.g. 'April 2026') and return ordered dict."""
+    from collections import OrderedDict
+    by_month = OrderedDict()
+    for s in available_slots:
+        # Date format is "April 2026 5" or "May 2026 12"
+        parts = s["date"].rsplit(" ", 1)  # ["April 2026", "5"]
+        month_key = parts[0] if len(parts) == 2 else "Unknown"
+        if month_key not in by_month:
+            by_month[month_key] = []
+        by_month[month_key].append(s)
+    return by_month
+
+
 def build_found_email(config, available_slots, url):
-    """Build email content for when slots are found."""
+    """Build email content for when slots are found, grouped by month."""
     subject = config.get("notify_subject", "Appointment Available!")
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    by_month = group_slots_by_month(available_slots)
 
-    slots_text = "\n".join(
-        f"  - {s['branch']} on {s['date']}"
-        for s in available_slots
-    )
-    slots_html = "".join(
-        f"<li><strong>{html.escape(s['branch'])}</strong> on {html.escape(s['date'])}</li>"
-        for s in available_slots
-    )
+    # Build the summary line: "April: 3 slots | May: 1 slot"
+    summary_parts = []
+    for month, slots in by_month.items():
+        count = len(slots)
+        summary_parts.append(f"{month}: {count} slot{'s' if count != 1 else ''}")
+    summary_line = " | ".join(summary_parts)
 
-    text_body = f"""Appointment slots found!
+    # Plain text
+    text_lines = [f"Appointment slots found!\n", f"{summary_line}\n"]
+    for month, slots in by_month.items():
+        text_lines.append(f"\n{month}:")
+        for s in slots:
+            day = s["date"].rsplit(" ", 1)[-1]
+            text_lines.append(f"  - {s['branch']} on the {day}th")
+    text_lines.append(f"\nBook now: {url}")
+    text_lines.append(f"Checked at: {now}")
+    text_lines.append(f"\n---\nTo stop alerts, disable the workflow in your repo's Actions tab.")
+    text_body = "\n".join(text_lines)
 
-{slots_text}
+    # HTML - summary badges in the header, then detailed list
+    summary_html = ""
+    for month, slots in by_month.items():
+        count = len(slots)
+        summary_html += (
+            f'<span style="display:inline-block;background:rgba(255,255,255,0.2);'
+            f'padding:6px 14px;border-radius:20px;margin:4px;font-size:14px;">'
+            f'{html.escape(month)}: {count} slot{"s" if count != 1 else ""}</span>'
+        )
 
-Book now: {url}
-Checked at: {now}
-
----
-To stop alerts, disable the workflow in your repo's Actions tab.
-"""
+    details_html = ""
+    for month, slots in by_month.items():
+        details_html += f'<h3 style="margin:18px 0 8px 0;color:#374151;">{html.escape(month)}</h3><ul style="margin:0;">'
+        for s in slots:
+            day = s["date"].rsplit(" ", 1)[-1]
+            details_html += (
+                f'<li><strong>{html.escape(s["branch"])}</strong> on the {html.escape(day)}th</li>'
+            )
+        details_html += "</ul>"
 
     html_body = f"""<html>
 <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
     <div style="background: #10b981; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
-        <h1 style="margin: 0;">Appointment Slots Found!</h1>
+        <h1 style="margin: 0 0 10px 0;">Appointment Slots Found!</h1>
+        <div>{summary_html}</div>
     </div>
     <div style="padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
-        <ul>{slots_html}</ul>
+        {details_html}
         <p style="text-align: center; margin: 30px 0;">
             <a href="{html.escape(url)}"
                style="background: #10b981; color: white; padding: 14px 28px;
