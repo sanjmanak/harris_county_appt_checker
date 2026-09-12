@@ -9,6 +9,6 @@ venv/
 debug_*.png
 results.json
 
-# Video pipeline output
+# Rendered video output -- regenerate with demo/render_reel.py
 demo/out/
 demo/raw/

@@ -1,0 +1,2 @@
+playwright==1.56.0
+imageio-ffmpeg==0.5.1   # a full ffmpeg with H.264; skip if you have `brew install ffmpeg`
