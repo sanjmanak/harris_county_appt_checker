@@ -14,13 +14,13 @@ it seeks the page's animation timeline to each exact timestamp and screenshots
 it, so every frame is perfect and the output is identical on any machine.
 
 ```bash
-python render_reel.py                      # → out/reel.mp4  (29s, 30fps, H.264)
+python render_reel.py                      # → out/reel.mp4  (32s, 30fps, H.264)
 python render_reel.py --fps 60             # smoother, twice the render time
 python render_reel.py --stills             # one PNG per second, to check framing
 python render_reel.py --start 16 --end 22  # re-render one section while editing
 ```
 
-A full 29s render takes about 6 minutes. Use `--scale 0.5` for fast previews.
+A full 32s render takes about 15 minutes on a laptop. Use `--scale 0.5` for fast previews.
 
 ### Editing the reel
 

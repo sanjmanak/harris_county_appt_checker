@@ -2,7 +2,7 @@
 <meta charset="utf-8">
 <title>Reel — Harris County Appointment Bot</title>
 <!--
-  A deterministic, seekable 29s vertical reel (1080x1920).
+  A deterministic, seekable 32s vertical reel (1080x1920).
 
   Every animation is a paused Web Animations API animation, so render_reel.py
   can seek to an exact timestamp and screenshot it. That gives frame-perfect
@@ -109,19 +109,19 @@
 <div id="stage">
   <!-- ============ S1  HOOK  0.0–3.6 ============ -->
   <div class="scene" id="s1">
-    <div class="c" id="s1cal" style="left:180px; top:250px; transform-origin:50% 0;"></div>
+    <div class="c" id="s1cal" style="left:180px; top:200px; transform-origin:50% 0;"></div>
     <div class="c" id="s1veil" style="left:0; top:0; width:1080px; height:1920px;
          background:linear-gradient(180deg,rgba(10,12,17,.25) 0%,rgba(10,12,17,.72) 34%,rgba(10,12,17,.92) 55%);"></div>
-    <div class="c" id="s1k" style="left:90px; top:770px;">
+    <div class="c" id="s1k" style="left:90px; top:775px;">
       <div class="kicker">Harris County Tax Office</div>
     </div>
-    <div class="c" id="s1a" style="left:86px; top:840px;">
+    <div class="c" id="s1a" style="left:86px; top:835px;">
       <div class="head xl">EVERY</div></div>
-    <div class="c" id="s1b" style="left:86px; top:1008px;">
+    <div class="c" id="s1b" style="left:86px; top:1003px;">
       <div class="head xl">SINGLE</div></div>
-    <div class="c" id="s1c" style="left:86px; top:1176px;">
+    <div class="c" id="s1c" style="left:86px; top:1171px;">
       <div class="head xl red">DAY.</div></div>
-    <div class="c" id="s1d" style="left:92px; top:1382px;">
+    <div class="c" id="s1d" style="left:92px; top:1350px;">
       <div class="sub">Booked. For the next four months.</div></div>
   </div>
 
@@ -130,29 +130,29 @@
     <div class="c" id="s2k" style="left:90px; top:640px;">
       <div class="kicker">so i stopped refreshing</div></div>
     <div class="c" id="s2a" style="left:86px; top:720px;">
-      <div class="head">I HAD AN</div>
-      <div class="head">APPOINTMENT IN</div></div>
-    <div class="c" id="s2timer" style="left:86px; top:940px;">
+      <div class="head">I HAD ONE</div>
+      <div class="head">BOOKED IN</div></div>
+    <div class="c" id="s2timer" style="left:86px; top:975px;">
       <div class="head xl green mono" id="s2num">00:00</div></div>
-    <div class="c" id="s2d" style="left:92px; top:1180px;">
+    <div class="c" id="s2d" style="left:92px; top:1165px;">
       <div class="sub">No phone calls. No refreshing. No $49 &ldquo;expediter.&rdquo;</div></div>
-    <div class="c" id="s2bar" style="left:92px; top:1300px; width:700px;">
+    <div class="c" id="s2bar" style="left:92px; top:1330px; width:700px;">
       <div class="bar"><i id="s2fill"></i></div></div>
   </div>
 
   <!-- ============ S3  PROBLEM  7.2–11.6 ============ -->
   <div class="scene" id="s3">
-    <div class="c" id="s3k" style="left:90px; top:360px;">
+    <div class="c" id="s3k" style="left:90px; top:330px;">
       <div class="kicker">the site, doing its best</div></div>
-    <div class="c" id="s3sel" style="left:90px; top:440px; width:760px;">
+    <div class="c" id="s3sel" style="left:90px; top:405px; width:760px;">
       <div class="row" style="width:760px; font-family:var(--sans); font-size:34px;">
         <span class="m" id="s3branch" style="font-weight:700;color:#F4F5F7;">Downtown</span>
         <span style="color:#6B7280;">&#9660;</span>
       </div></div>
-    <div class="c" id="s3cal" style="left:180px; top:580px;"></div>
-    <div class="c" id="s3stamp" style="left:250px; top:960px; transform:rotate(-9deg);">
+    <div class="c" id="s3cal" style="left:180px; top:540px;"></div>
+    <div class="c" id="s3stamp" style="left:250px; top:920px; transform:rotate(-9deg);">
       <div class="stamp">NO OPENINGS</div></div>
-    <div class="c" id="s3math" style="left:90px; top:1300px;">
+    <div class="c" id="s3math" style="left:90px; top:1262px;">
       <div class="head sm">5 branches &times; 2 months</div>
       <div class="head sm red">= 10 calendars. By hand.</div></div>
   </div>
@@ -191,7 +191,7 @@
       <div class="kicker">while i was asleep</div></div>
     <div class="c" id="s5rows" style="left:140px; top:450px;"></div>
     <div class="c" id="s5count" style="left:140px; top:1345px;">
-      <div class="sub mono"><span id="s5n" class="green">0</span> checks &middot; <span class="green">0</span> minutes of my life</div>
+      <div class="sub mono"><span id="s5n" class="green">0</span> checks &middot; <span class="green">0</span> minutes of mine</div>
     </div>
   </div>
 
@@ -217,20 +217,24 @@
     </div>
   </div>
 
-  <!-- ============ S7  PAYOFF  26.0–29.0 ============ -->
+  <!-- ============ S7  PAYOFF + CTA  25.8–31.85 ============ -->
   <div class="scene" id="s7">
-    <div class="c" id="s7a" style="left:86px; top:620px;">
+    <div class="c" id="s7a" style="left:86px; top:560px;">
       <div class="head xl green mono">29:14</div>
       <div class="kicker" style="margin-top:18px;">registered. start to finish.</div>
     </div>
-    <div class="c" id="s7rule" style="left:90px; top:920px; width:900px;"><div class="rule"></div></div>
-    <div class="c" id="s7b" style="left:90px; top:980px;">
+    <div class="c" id="s7rule" style="left:90px; top:805px; width:900px;"><div class="rule"></div></div>
+    <div class="c" id="s7b" style="left:90px; top:830px;">
       <div class="head sm">Same site. Same wait.</div>
       <div class="head sm green">I just stopped watching.</div>
     </div>
-    <div class="c" id="s7c" style="left:90px; top:1240px;">
-      <div class="sub">Whole thing is open source &mdash;</div>
-      <div class="sub" style="color:var(--green);font-weight:700;">comment SLOT and I&rsquo;ll send it.</div>
+    <div class="c" id="s7c" style="left:92px; top:1040px;">
+      <div class="sub">Still checking something by hand?</div>
+      <div class="sub" style="color:var(--paper);font-weight:700;">I build the thing that does it.</div>
+    </div>
+    <div class="c" id="s7d" style="left:90px; top:1215px;">
+      <div class="kicker green">AI Unlocked &middot; Houston</div>
+      <div class="head sm" style="margin-top:12px;">DM me.</div>
     </div>
   </div>
 
@@ -249,7 +253,7 @@
 // so one track per element per property group is the rule here.
 // ---------------------------------------------------------------------------
 const S = document.getElementById('stage');
-const D = 29.0;
+const D = 32.0;
 const anims = [];
 const seekHooks = [];
 const EASE = 'cubic-bezier(.16,1,.3,1)';      // soft, expensive-looking settle
@@ -344,9 +348,9 @@ const cal3 = buildCal(document.getElementById('s3cal'), { title: 'April 2026', l
 // ===========================================================================
 // S1  HOOK 0.0–3.35 — the red wall builds one day at a time
 // ===========================================================================
-scene('s1', 0, 3.35);
+scene('s1', 0, 3.18);
 drift('s1', 0, 3.6, 1.02, 1.12);
-track('s1cal', [K(0, 0, 'translateY(40px) scale(.96)'), K(.5, 1, 'translateY(0px) scale(1)')]);
+track('s1cal', [K(0, 0, 'translateY(40px) scale(.77)'), K(.5, 1, 'translateY(0px) scale(.8)')]);
 cal1.querySelectorAll('.day.taken').forEach((d, i) => {
   const at = .2 + i * .024;
   track(d, [K(0, 0, 'scale(.5)'), K(at, 0, 'scale(.5)', SNAP), K(at + .3, 1, 'scale(1)')]);
@@ -364,7 +368,7 @@ track('s1d', [K(0, 0, 'translateY(24px)'), K(2.45, 0, 'translateY(24px)'), K(3.0
 // ===========================================================================
 // S2  PROMISE 3.4–7.0 — the number that buys the next 25 seconds
 // ===========================================================================
-scene('s2', 3.4, 7.0);
+scene('s2', 3.4, 6.83);
 drift('s2', 3.4, 3.8, 1.0, 1.05);
 track('s2k', [{ t: 3.5, opacity: '0' }, { t: 3.8, opacity: '1' }]);
 slam('s2a', 3.6, .6, 50);
@@ -379,7 +383,7 @@ track('s2d', [K(0, 0, 'translateY(22px)'), K(5.7, 0, 'translateY(22px)'), K(6.2,
 // ===========================================================================
 // S3  PROBLEM 7.05–11.35 — click through every branch, all red
 // ===========================================================================
-scene('s3', 7.05, 11.35);
+scene('s3', 7.05, 11.18);
 drift('s3', 7.05, 4.4, 1.0, 1.06);
 const BRANCHES = ['Downtown', 'Burnett Bayland', 'Spring Branch', 'Palm Center', 'Mickey Leland'];
 const SWITCH = 7.75, GAP = .56;
@@ -412,7 +416,7 @@ track('s3math', [K(0, 0, 'translateY(30px)'), K(10.3, 0, 'translateY(30px)', SNA
 // ===========================================================================
 // S4  SOLUTION 11.4–16.1 — the code, typed in
 // ===========================================================================
-scene('s4', 11.4, 16.1);
+scene('s4', 11.4, 15.93);
 drift('s4', 11.4, 4.8, 1.0, 1.05);
 track('s4k', [{ t: 11.45, opacity: '0' }, { t: 11.75, opacity: '1' }]);
 track('s4term', [K(0, 0, 'translateY(46px) scale(.97)'), K(11.5, 0, 'translateY(46px) scale(.97)'),
@@ -437,7 +441,7 @@ seekHooks.push(t => {  // blinking caret
 // ===========================================================================
 // S5  THE GRIND 16.15–21.75 — rows stack, then one goes green
 // ===========================================================================
-scene('s5', 16.15, 21.75);
+scene('s5', 16.15, 21.58);
 const LOG = [
   ['01:30', 'no openings'], ['02:00', 'no openings'], ['03:30', 'no openings'],
   ['04:00', 'no openings'], ['04:30', 'no openings'], ['05:30', 'no openings'],
@@ -461,22 +465,22 @@ LOG.forEach(([time, msg], i) => {
     const at = 16.35 + i * .42;
     track(r, [K(0, 0, 'translateY(26px)'), K(at, 0, 'translateY(26px)', SNAP),
               K(at + .3, 1, 'translateY(0px)', LIN),
-              K(HIT, 1, 'translateY(0px)', LIN), K(HIT + .5, .28, 'translateY(0px)')]);
+              K(HIT, 1, 'translateY(0px)', LIN), K(HIT + .5, .15, 'translateY(0px)')]);
   }
 });
 track('s5k', [{ t: 16.2, opacity: '0' }, { t: 16.5, opacity: '1', ease: LIN },
               { t: HIT + .2, opacity: '1', ease: LIN }, { t: HIT + .5, opacity: '0' }], LIN);
 track('s5count', [{ t: 16.4, opacity: '0' }, { t: 16.8, opacity: '1', ease: LIN },
                   { t: HIT + .25, opacity: '1', ease: LIN }, { t: HIT + .55, opacity: '0' }], LIN);
-num('s5n', 16.4, 2.4, 0, 143);
+num('s5n', 16.4, 2.4, 0, 336);
 // punch in on the green row
-track('s5rows', [{ t: HIT + .3, transform: 'scale(1) translateY(0px)' },
-                 { t: HIT + 1.05, transform: 'scale(1.22) translateY(-300px)' }]);
+track('s5rows', [{ t: HIT + .55, transform: 'scale(1) translateY(0px)' },
+                 { t: HIT + 1.25, transform: 'scale(1.15) translateY(-160px)' }]);
 
 // ===========================================================================
 // S6  EMAIL 21.8–25.75 — the payoff object
 // ===========================================================================
-scene('s6', 21.8, 25.75);
+scene('s6', 21.8, 25.58);
 drift('s6', 21.8, 4.0, 1.0, 1.05);
 track('s6k', [K(0, 0, 'translateY(16px)'), K(21.9, 0, 'translateY(16px)'), K(22.3, 1, 'translateY(0px)')]);
 track('s6mail', [K(0, 0, 'translateY(170px) scale(.94)'), K(22.0, 0, 'translateY(170px) scale(.94)', SNAP),
@@ -493,19 +497,21 @@ track('s6cta', [K(0, 0, 'scale(.94)'), K(23.15, 0, 'scale(.94)', SNAP), K(23.55,
 track('s6done', [K(0, 0, 'translateY(30px)'), K(24.2, 0, 'translateY(30px)', SNAP), K(24.75, 1, 'translateY(0px)')]);
 
 // ===========================================================================
-// S7  PAYOFF / CTA 25.8–28.85
+// S7  PAYOFF / CTA 25.8–31.85
 // ===========================================================================
-scene('s7', 25.8, 28.85, .25);
-drift('s7', 25.8, 3.2, 1.0, 1.04);
+scene('s7', 25.8, 31.75, .25);
+drift('s7', 25.8, 6.2, 1.0, 1.04);
 track('s7a', [K(0, 0, 'translateY(40px)'), K(25.9, 0, 'translateY(40px)', SNAP), K(26.5, 1, 'translateY(0px)')]);
 document.getElementById('s7rule').style.transformOrigin = 'left';
 track('s7rule', [K(0, 0, 'scaleX(0)'), K(26.4, 0, 'scaleX(0)'), K(26.9, 1, 'scaleX(1)')]);
 track('s7b', [K(0, 0, 'translateY(28px)'), K(26.6, 0, 'translateY(28px)'), K(27.15, 1, 'translateY(0px)')]);
-track('s7c', [K(0, 0, 'translateY(24px) scale(1)'), K(27.2, 0, 'translateY(24px) scale(1)', SNAP),
-              K(27.75, 1, 'translateY(0px) scale(1)', LIN),
-              K(28.05, 1, 'translateY(0px) scale(1)', 'ease-out'),
-              K(28.3, 1, 'translateY(0px) scale(1.05)', 'ease-in-out'),
-              K(28.55, 1, 'translateY(0px) scale(1)')]);
+track('s7c', [K(0, 0, 'translateY(24px)'), K(27.6, 0, 'translateY(24px)', SNAP), K(28.15, 1, 'translateY(0px)')]);
+document.getElementById('s7d').style.transformOrigin = 'left center';
+track('s7d', [K(0, 0, 'translateY(24px) scale(1)'), K(29.0, 0, 'translateY(24px) scale(1)', SNAP),
+              K(29.55, 1, 'translateY(0px) scale(1)', LIN),
+              K(29.85, 1, 'translateY(0px) scale(1)', 'ease-out'),
+              K(30.1, 1, 'translateY(0px) scale(1.05)', 'ease-in-out'),
+              K(30.35, 1, 'translateY(0px) scale(1)')]);
 
 // ---------------------------------------------------------------------------
 // Cut flashes — one track, so they cannot pin each other to zero.
