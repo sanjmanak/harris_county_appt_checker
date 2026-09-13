@@ -355,14 +355,22 @@ def read_visible_month(page):
 
 
 def close_calendar(page):
-    """Collapse the datepicker so the next branch starts from a clean state."""
+    """
+    Collapse the datepicker so the next branch starts from a clean state.
+
+    Never press Escape here: on the live site the form sits inside a Bootstrap
+    modal, and an Escape that the datepicker does not swallow closes the whole
+    modal -- after which every remaining branch times out on a hidden dropdown.
+    """
     try:
-        page.keyboard.press("Escape")
-        page.wait_for_timeout(200)
         page.evaluate("""() => {
             if (window.jQuery && jQuery.datepicker) { try { jQuery.datepicker._hideDatepicker(); } catch (e) {} }
             document.querySelectorAll('.ui-datepicker').forEach(p => { p.style.display = 'none'; });
+            if (document.activeElement && document.activeElement !== document.body) {
+                document.activeElement.blur();
+            }
         }""")
+        page.wait_for_timeout(200)
     except Exception:
         pass
 
@@ -644,6 +652,13 @@ def run_check(config, url, headless=True, screenshot_dir=HERE):
                     print(f"  Timed out on {branch['name']}, moving on")
                 except Exception as e:
                     print(f"  Error on {branch['name']}: {e}")
+                if not page.is_visible(branch_selector):
+                    # The form itself went away. Partial results here would look
+                    # like "nothing open" at the skipped branches, so fail loudly.
+                    dump_page_state(page, "form closed")
+                    page.screenshot(path=os.path.join(screenshot_dir, "debug_form_closed.png"))
+                    raise CheckFailed(f"The appointment form closed after checking "
+                                      f"{branch['name']} -- the remaining branches were not read.")
         finally:
             try:
                 page.screenshot(path=os.path.join(screenshot_dir, "debug_last_state.png"))

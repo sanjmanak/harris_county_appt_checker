@@ -136,6 +136,7 @@ server. Tests also run on every push via `.github/workflows/tests.yml`.
 | Branch name not in the dropdown | Warns, prints the real option list, checks the rest |
 | Site layout changed | Error email + debug screenshot uploaded as an Actions artifact |
 | One branch errors mid-run | Logged, remaining branches still checked |
+| The form closes mid-run (site modal dismissed) | Error email + screenshot, exit 2 -- never reported as partial "no slots" |
 
 ## Cost
 

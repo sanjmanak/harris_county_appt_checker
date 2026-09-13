@@ -75,6 +75,15 @@ function openFlow() {
   document.getElementById('popup').style.display = 'block';
   document.getElementById('form').style.display = 'block';
 }
+// The real form sits inside a Bootstrap modal, which closes on Escape unless
+// the datepicker swallows the key first. Reproduce that so the checker can
+// never regress into pressing Escape between branches.
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const dp = document.getElementById('dp');
+  if (dp.style.display === 'block') { dp.style.display = 'none'; return; }
+  document.getElementById('form').style.display = 'none';
+});
 function onBranchChange() {
   offset = 0;
   document.getElementById('dp').style.display = 'none';

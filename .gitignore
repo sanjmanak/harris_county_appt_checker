@@ -12,3 +12,6 @@ results.json
 # Rendered video output -- regenerate with demo/render_reel.py
 demo/out/
 demo/raw/
+
+# macOS
+.DS_Store
