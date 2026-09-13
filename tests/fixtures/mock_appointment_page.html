@@ -1,0 +1,119 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Mock Appointment Page (test fixture)</title>
+<!--
+  OFFLINE TEST FIXTURE -- not affiliated with Harris County.
+  It reproduces only the DOM shape checker.py depends on:
+    * a transaction table with "Make Appointment" buttons
+    * an informational popup with an OK button
+    * a branch <select id="ABranch"> whose option text is verbose
+      ("Downtown (1001 Preston St)") so we test fuzzy branch matching
+    * a jQuery UI datepicker DOM: td[data-handler=selectDay] > a  = open
+      td.ui-datepicker-unselectable > span = taken
+      .ui-datepicker-other-month padding cells = must be ignored
+-->
+<style>
+  body { font-family: Arial, sans-serif; padding: 24px; }
+  table { border-collapse: collapse; } td, th { border: 1px solid #ccc; padding: 8px; }
+  #popup, #form { display: none; }
+  .ui-datepicker { display: none; border: 1px solid #999; padding: 8px; width: 280px; }
+  .ui-datepicker td { width: 34px; text-align: center; }
+  .ui-datepicker-unselectable { background: #fee; color: #c00; }
+  .ui-datepicker-other-month { background: #f5f5f5; color: #aaa; }
+</style>
+
+<h1>Appointments</h1>
+<table>
+  <tr><th>Transaction</th><th></th></tr>
+  <tr><td>Title Transfer</td><td><a href="#" onclick="openFlow();return false">Make Appointment</a></td></tr>
+  <tr><td>New Resident (First time TX registration)</td><td><a href="#" onclick="openFlow();return false">Make Appointment</a></td></tr>
+  <tr><td>Special Plate</td><td><a href="#" onclick="openFlow();return false">Make Appointment</a></td></tr>
+</table>
+
+<div id="popup">
+  <p>Please bring your documents. Arrive 10 minutes early.</p>
+  <button onclick="document.getElementById('popup').style.display='none'">OK</button>
+</div>
+
+<div id="form">
+  <label>Branch
+    <select id="ABranch" onchange="onBranchChange()">
+      <option value="">-- Select a branch --</option>
+      <option value="1">Downtown (1001 Preston St)</option>
+      <option value="2">Burnett Bayland Annex (6000 Chimney Rock Rd)</option>
+      <option value="3">Spring Branch Annex (1721 Pech Rd)</option>
+      <option value="9">Baytown Annex (701 W Baker Rd)</option>
+    </select>
+  </label>
+  <label>Date <input type="text" id="DatePicker" class="hasDatepicker" readonly placeholder="Select Date"></label>
+  <div class="ui-datepicker" id="dp">
+    <div class="ui-datepicker-header">
+      <a class="ui-datepicker-prev">&#9668;</a>
+      <a class="ui-datepicker-next" onclick="step(1)">&#9658;</a>
+      <div class="ui-datepicker-title"><span class="ui-datepicker-month"></span></div>
+    </div>
+    <table class="ui-datepicker-calendar"><tbody id="dpBody"></tbody></table>
+  </div>
+</div>
+
+<script>
+// ---- fixture data: which days are open, per branch value, per month offset ----
+// Branch 1 opens days in month 0 and month 1; branch 2 only in month 1;
+// branch 3 has nothing (all red). Branch 9 is not in the default config.
+const OPEN = {
+  "1": { 0: [7, 21], 1: [3] },
+  "2": { 1: [11, 12] },
+  "3": {},
+  "9": { 0: [1] },
+};
+const MONTHS = ["January","February","March","April","May","June",
+                "July","August","September","October","November","December"];
+const BASE = new Date(2026, 3, 1); // April 2026, fixed so tests are deterministic
+let offset = 0;
+
+function openFlow() {
+  document.getElementById('popup').style.display = 'block';
+  document.getElementById('form').style.display = 'block';
+}
+// The real form sits inside a Bootstrap modal, which closes on Escape unless
+// the datepicker swallows the key first. Reproduce that so the checker can
+// never regress into pressing Escape between branches.
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const dp = document.getElementById('dp');
+  if (dp.style.display === 'block') { dp.style.display = 'none'; return; }
+  document.getElementById('form').style.display = 'none';
+});
+function onBranchChange() {
+  offset = 0;
+  document.getElementById('dp').style.display = 'none';
+}
+function step(n) { offset += n; render(); }
+function render() {
+  const branch = document.getElementById('ABranch').value;
+  const d = new Date(BASE.getFullYear(), BASE.getMonth() + offset, 1);
+  document.querySelector('.ui-datepicker-month').textContent =
+      MONTHS[d.getMonth()] + ' ' + d.getFullYear();
+  const open = (OPEN[branch] || {})[offset] || [];
+  const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  const lead = d.getDay();
+  let html = '', cell = 0, row = '';
+  // leading padding cells from the previous month -- these carry data-handler in
+  // some jQuery UI configs, so the checker must skip .ui-datepicker-other-month
+  for (let i = 0; i < lead; i++) {
+    row += '<td class="ui-datepicker-other-month" data-handler="selectDay"><a class="ui-state-default">' +
+           (28 + i) + '</a></td>';
+    cell++;
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    row += open.includes(day)
+      ? '<td data-handler="selectDay" data-month="' + d.getMonth() + '"><a class="ui-state-default" href="#">' + day + '</a></td>'
+      : '<td class="ui-datepicker-unselectable ui-state-disabled"><span class="ui-state-default">' + day + '</span></td>';
+    if (++cell % 7 === 0) { html += '<tr>' + row + '</tr>'; row = ''; }
+  }
+  if (row) html += '<tr>' + row + '</tr>';
+  document.getElementById('dpBody').innerHTML = html;
+  document.getElementById('dp').style.display = 'block';
+}
+document.getElementById('DatePicker').addEventListener('click', render);
+</script>

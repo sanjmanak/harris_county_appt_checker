@@ -1,0 +1,549 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Reel — Harris County Appointment Bot</title>
+<!--
+  A deterministic, seekable 29s vertical reel (1080x1920).
+
+  Every animation is a paused Web Animations API animation, so render_reel.py
+  can seek to an exact timestamp and screenshot it. That gives frame-perfect
+  output with no dropped frames and no screen recorder.
+
+    window.__seek(seconds)   set the whole timeline to a moment
+    ?t=12.5                  preview a moment in a browser
+    ?play=1                  play it in a browser at real speed
+-->
+<style>
+  :root {
+    --ink: #0A0C11;
+    --paper: #F4F5F7;
+    --green: #1FD65F;
+    --red: #FF4B4B;
+    --amber: #FFB020;
+    --dim: #6B7280;
+    --sans: "Helvetica Neue", Helvetica, "Liberation Sans", Arial, sans-serif;
+    --mono: "SF Mono", ui-monospace, "DejaVu Sans Mono", "Liberation Mono", monospace;
+  }
+  html, body { margin: 0; background: #000; overflow: hidden; }
+  #stage {
+    position: relative; width: 1080px; height: 1920px;
+    background: var(--ink); overflow: hidden;
+    transform-origin: top left;
+    font-family: var(--sans); color: var(--paper);
+    -webkit-font-smoothing: antialiased;
+  }
+  .scene { position: absolute; inset: 0; opacity: 0; }
+  .c { position: absolute; }
+
+  /* ---------- type ---------- */
+  .kicker { font-size: 34px; font-weight: 700; letter-spacing: .22em;
+            text-transform: uppercase; color: #838C9B; }
+  .head   { font-size: 132px; font-weight: 800; letter-spacing: -.045em;
+            line-height: .92; max-width: 940px; }
+  .head.sm { font-size: 68px; line-height: 1.08; }
+  .head.xl { font-size: 176px; }
+  .sub    { font-size: 44px; font-weight: 500; color: #AAB3C2; line-height: 1.28;
+            max-width: 900px; }
+  .mono   { font-family: var(--mono); }
+  .green { color: var(--green); } .red { color: var(--red); } .amber { color: var(--amber); }
+
+  /* ---------- calendar ---------- */
+  .cal { width: 760px; border-radius: 28px; background: #12151D;
+         border: 1px solid #222836; padding: 30px; box-sizing: border-box; }
+  .cal-h { display: flex; justify-content: space-between; align-items: center;
+           margin-bottom: 22px; font-size: 36px; font-weight: 700; }
+  .cal-h .arrow { color: var(--dim); font-size: 30px; }
+  .dow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px;
+         font-size: 22px; color: var(--dim); text-align: center; margin-bottom: 10px;
+         font-weight: 700; letter-spacing: .08em; }
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+  .day { aspect-ratio: 1; border-radius: 14px; display: grid; place-items: center;
+         font-size: 30px; font-weight: 600; background: #171B25; color: #3C4453; }
+  .day.taken { background: rgba(255,75,75,.20); color: #FF8585; }
+  .day.open  { background: var(--green); color: #04210F; font-weight: 800; }
+
+  /* ---------- log rows ---------- */
+  .row { width: 800px; height: 92px; border-radius: 18px; background: #12151D;
+         border: 1px solid #222836; display: flex; align-items: center;
+         padding: 0 28px; box-sizing: border-box; gap: 22px;
+         font-family: var(--mono); font-size: 30px; }
+  .row .t { color: var(--dim); width: 130px; }
+  .row .m { flex: 1; color: #8A93A3; }
+  .row.hit { background: rgba(31,214,95,.12); border-color: rgba(31,214,95,.55); }
+  .row.hit .m { color: var(--green); font-weight: 700; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; background: #333B4A; }
+  .dot.g { background: var(--green); box-shadow: 0 0 24px rgba(31,214,95,.9); }
+
+  /* ---------- email card ---------- */
+  .mail { width: 820px; border-radius: 30px; overflow: hidden; background: #fff;
+          color: #111827; box-shadow: 0 50px 120px rgba(0,0,0,.7); }
+  .mail-h { background: var(--green); color: #04210F; padding: 34px 36px; }
+  .mail-h .st { font-size: 26px; font-weight: 700; opacity: .75; letter-spacing: .1em;
+                text-transform: uppercase; }
+  .mail-h .ti { font-size: 54px; font-weight: 800; letter-spacing: -.03em; margin-top: 8px; }
+  .mail-b { padding: 34px 36px 40px; }
+  .mail-b .li { display: flex; justify-content: space-between; align-items: center;
+                font-size: 36px; padding: 20px 0; border-bottom: 1px solid #E8EAEE; }
+  .mail-b .li b { font-weight: 700; }
+  .mail-b .li span { color: #6B7280; font-family: var(--mono); font-size: 32px; }
+  .cta { margin-top: 34px; background: #0A0C11; color: #fff; text-align: center;
+         border-radius: 16px; padding: 26px; font-size: 38px; font-weight: 700; }
+
+  /* ---------- misc ---------- */
+  .chip { display: inline-block; padding: 14px 28px; border-radius: 999px;
+          border: 2px solid #2A3140; font-size: 32px; font-weight: 700; color: #9AA3B2; }
+  .chip.on { border-color: var(--green); color: var(--green); }
+  .bar { height: 8px; background: #1A1F2A; border-radius: 99px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 100%; background: var(--green);
+             transform-origin: left; }
+  .rule { height: 2px; background: #222836; }
+  .stamp { border: 8px solid var(--red); color: var(--red); font-weight: 800;
+           font-size: 72px; letter-spacing: .04em; padding: 18px 40px; border-radius: 14px; }
+  .vig { position: absolute; inset: 0; pointer-events: none;
+         background: radial-gradient(ellipse at 50% 46%, transparent 60%, rgba(0,0,0,.5) 100%); }
+  .grain { position: absolute; inset: -20%; opacity: .05; pointer-events: none;
+           background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  #flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+  /* Reels UI keep-out: nothing important below y=1400 or above y=250. */
+</style>
+
+<div id="stage">
+  <!-- ============ S1  HOOK  0.0–3.6 ============ -->
+  <div class="scene" id="s1">
+    <div class="c" id="s1cal" style="left:180px; top:250px; transform-origin:50% 0;"></div>
+    <div class="c" id="s1veil" style="left:0; top:0; width:1080px; height:1920px;
+         background:linear-gradient(180deg,rgba(10,12,17,.25) 0%,rgba(10,12,17,.72) 34%,rgba(10,12,17,.92) 55%);"></div>
+    <div class="c" id="s1k" style="left:90px; top:770px;">
+      <div class="kicker">Harris County Tax Office</div>
+    </div>
+    <div class="c" id="s1a" style="left:86px; top:840px;">
+      <div class="head xl">EVERY</div></div>
+    <div class="c" id="s1b" style="left:86px; top:1008px;">
+      <div class="head xl">SINGLE</div></div>
+    <div class="c" id="s1c" style="left:86px; top:1176px;">
+      <div class="head xl red">DAY.</div></div>
+    <div class="c" id="s1d" style="left:92px; top:1382px;">
+      <div class="sub">Booked. For the next four months.</div></div>
+  </div>
+
+  <!-- ============ S2  PROMISE  3.6–7.2 ============ -->
+  <div class="scene" id="s2">
+    <div class="c" id="s2k" style="left:90px; top:640px;">
+      <div class="kicker">so i stopped refreshing</div></div>
+    <div class="c" id="s2a" style="left:86px; top:720px;">
+      <div class="head">I HAD AN</div>
+      <div class="head">APPOINTMENT IN</div></div>
+    <div class="c" id="s2timer" style="left:86px; top:940px;">
+      <div class="head xl green mono" id="s2num">00:00</div></div>
+    <div class="c" id="s2d" style="left:92px; top:1180px;">
+      <div class="sub">No phone calls. No refreshing. No $49 &ldquo;expediter.&rdquo;</div></div>
+    <div class="c" id="s2bar" style="left:92px; top:1300px; width:700px;">
+      <div class="bar"><i id="s2fill"></i></div></div>
+  </div>
+
+  <!-- ============ S3  PROBLEM  7.2–11.6 ============ -->
+  <div class="scene" id="s3">
+    <div class="c" id="s3k" style="left:90px; top:360px;">
+      <div class="kicker">the site, doing its best</div></div>
+    <div class="c" id="s3sel" style="left:90px; top:440px; width:760px;">
+      <div class="row" style="width:760px; font-family:var(--sans); font-size:34px;">
+        <span class="m" id="s3branch" style="font-weight:700;color:#F4F5F7;">Downtown</span>
+        <span style="color:#6B7280;">&#9660;</span>
+      </div></div>
+    <div class="c" id="s3cal" style="left:180px; top:580px;"></div>
+    <div class="c" id="s3stamp" style="left:250px; top:960px; transform:rotate(-9deg);">
+      <div class="stamp">NO OPENINGS</div></div>
+    <div class="c" id="s3math" style="left:90px; top:1300px;">
+      <div class="head sm">5 branches &times; 2 months</div>
+      <div class="head sm red">= 10 calendars. By hand.</div></div>
+  </div>
+
+  <!-- ============ S4  SOLUTION  11.6–16.4 ============ -->
+  <div class="scene" id="s4">
+    <div class="c" id="s4k" style="left:90px; top:380px;">
+      <div class="kicker">so i built the refresher</div></div>
+    <div class="c" id="s4term" style="left:90px; top:470px; width:900px;">
+      <div style="background:#0E1118;border:1px solid #222836;border-radius:22px;overflow:hidden;">
+        <div style="display:flex;gap:12px;padding:22px 26px;border-bottom:1px solid #1A1F2A;">
+          <span class="dot" style="background:#FF5F57"></span>
+          <span class="dot" style="background:#FEBC2E"></span>
+          <span class="dot" style="background:#28C840"></span>
+          <span class="mono" style="margin-left:18px;color:#4B5565;font-size:26px;">checker.py</span>
+        </div>
+        <div class="mono" style="padding:30px 30px 34px;font-size:30px;line-height:1.65;">
+          <div style="color:#4B5565;"># every 30 minutes, forever</div>
+          <div><span style="color:#7C8496;">for</span> branch <span style="color:#7C8496;">in</span> <span class="green">branches</span>:</div>
+          <div style="padding-left:44px;">open_calendar(branch)</div>
+          <div style="padding-left:44px;">days = <span class="amber">read_every_day</span>()</div>
+          <div style="padding-left:44px;"><span style="color:#7C8496;">if</span> days: <span class="green">email_me</span>()</div>
+          <div id="s4cursor" style="color:var(--green);">&#9608;</div>
+        </div>
+      </div></div>
+    <div class="c" id="s4chips" style="left:90px; top:1270px;">
+      <span class="chip" id="s4c1">runs on GitHub</span>
+      <span class="chip" id="s4c2">no server</span>
+      <span class="chip" id="s4c3">$0/mo</span>
+    </div>
+  </div>
+
+  <!-- ============ S5  THE GRIND + HIT  16.4–22.0 ============ -->
+  <div class="scene" id="s5">
+    <div class="c" id="s5k" style="left:90px; top:360px;">
+      <div class="kicker">while i was asleep</div></div>
+    <div class="c" id="s5rows" style="left:140px; top:450px;"></div>
+    <div class="c" id="s5count" style="left:140px; top:1345px;">
+      <div class="sub mono"><span id="s5n" class="green">0</span> checks &middot; <span class="green">0</span> minutes of my life</div>
+    </div>
+  </div>
+
+  <!-- ============ S6  EMAIL  22.0–26.0 ============ -->
+  <div class="scene" id="s6">
+    <div class="c" id="s6k" style="left:90px; top:400px;">
+      <div class="kicker green">6:02 am &middot; 1 new email</div></div>
+    <div class="c" id="s6mail" style="left:130px; top:490px;">
+      <div class="mail">
+        <div class="mail-h">
+          <div class="st">Appointment monitor</div>
+          <div class="ti">2 slots just opened</div>
+        </div>
+        <div class="mail-b">
+          <div class="li"><b>Downtown</b><span>Apr 7</span></div>
+          <div class="li" style="border-bottom:none;"><b>Spring Branch</b><span>Apr 9</span></div>
+          <div class="cta" id="s6cta">Book Now &rarr;</div>
+        </div>
+      </div></div>
+    <div class="c" id="s6done" style="left:90px; top:1290px;">
+      <div class="head sm green">Booked in 4 taps.</div>
+      <div class="sub" style="margin-top:14px;">Still in bed.</div>
+    </div>
+  </div>
+
+  <!-- ============ S7  PAYOFF  26.0–29.0 ============ -->
+  <div class="scene" id="s7">
+    <div class="c" id="s7a" style="left:86px; top:620px;">
+      <div class="head xl green mono">29:14</div>
+      <div class="kicker" style="margin-top:18px;">registered. start to finish.</div>
+    </div>
+    <div class="c" id="s7rule" style="left:90px; top:920px; width:900px;"><div class="rule"></div></div>
+    <div class="c" id="s7b" style="left:90px; top:980px;">
+      <div class="head sm">Same site. Same wait.</div>
+      <div class="head sm green">I just stopped watching.</div>
+    </div>
+    <div class="c" id="s7c" style="left:90px; top:1240px;">
+      <div class="sub">Whole thing is open source &mdash;</div>
+      <div class="sub" style="color:var(--green);font-weight:700;">comment SLOT and I&rsquo;ll send it.</div>
+    </div>
+  </div>
+
+  <div class="vig"></div>
+  <div class="grain"></div>
+  <div id="flash"></div>
+</div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Timeline
+//
+// Every element gets exactly ONE animation spanning the whole 29s, built from
+// waypoints. Two fill:both animations on the same element would fight over the
+// same property (the later one pins its first keyframe across all earlier time),
+// so one track per element per property group is the rule here.
+// ---------------------------------------------------------------------------
+const S = document.getElementById('stage');
+const D = 29.0;
+const anims = [];
+const seekHooks = [];
+const EASE = 'cubic-bezier(.16,1,.3,1)';      // soft, expensive-looking settle
+const SNAP = 'cubic-bezier(.2,.9,.25,1.2)';   // slight overshoot
+const LIN  = 'linear';
+
+/**
+ * track(el, [{t, ...cssProps, ease}], defaultEase)
+ * `ease` on a waypoint governs the segment that STARTS at that waypoint.
+ */
+function track(el, waypoints, defaultEase = EASE) {
+  if (typeof el === 'string') el = document.getElementById(el);
+  if (!el || !waypoints.length) return;
+  const frames = waypoints.map(w => {
+    const { t, ease, ...props } = w;
+    return { offset: Math.min(1, Math.max(0, t / D)), easing: ease || defaultEase, ...props };
+  });
+  frames.sort((a, b) => a.offset - b.offset);
+  if (frames[0].offset > 0) frames.unshift({ ...frames[0], offset: 0, easing: LIN });
+  const last = frames[frames.length - 1];
+  if (last.offset < 1) frames.push({ ...last, offset: 1, easing: LIN });
+  const a = el.animate(frames, { duration: D * 1000, fill: 'both', easing: LIN });
+  a.pause();
+  anims.push(a);
+  return a;
+}
+
+/** opacity + transform waypoint */
+const K = (t, opacity, transform, ease) => ({ t, opacity: String(opacity), transform, ease });
+
+/** Fade a scene in at `tin`, out at `tout`. */
+function scene(id, tin, tout, fade = .22) {
+  track(id, [
+    { t: 0, opacity: '0' }, { t: tin, opacity: '0', ease: LIN },
+    { t: tin + fade, opacity: '1', ease: LIN },
+    { t: tout, opacity: '1', ease: LIN },
+    { t: tout + fade, opacity: '0', ease: LIN },
+  ], LIN);
+}
+
+/** Slow push-in, so no shot ever sits perfectly still. */
+function drift(id, start, dur, from = 1, to = 1.06) {
+  const el = document.getElementById(id);
+  el.style.transformOrigin = '50% 45%';
+  track(el, [
+    { t: 0, transform: `scale(${from})` },
+    { t: start, transform: `scale(${from})`, ease: LIN },
+    { t: start + dur, transform: `scale(${to})`, ease: LIN },
+  ], LIN);
+}
+
+/** Rise-and-settle entrance. */
+function slam(el, start, dur = .6, dy = 60, ease = SNAP) {
+  track(el, [K(0, 0, `translateY(${dy}px)`), K(start, 0, `translateY(${dy}px)`, ease),
+             K(start + dur, 1, 'translateY(0px)')]);
+}
+
+/** Counting number, driven on seek rather than by interpolation. */
+function num(el, start, dur, from, to, fmt = v => Math.round(v)) {
+  if (typeof el === 'string') el = document.getElementById(el);
+  seekHooks.push(t => {
+    const p = Math.min(1, Math.max(0, (t - start) / dur));
+    el.textContent = fmt(from + (to - from) * (1 - Math.pow(1 - p, 3)));
+  });
+}
+const mmss = v => {
+  const s = Math.round(v);
+  return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+};
+
+// ---------------------------------------------------------------------------
+// calendar builder
+// ---------------------------------------------------------------------------
+function buildCal(host, { title, lead, days, open = [] }) {
+  const el = document.createElement('div');
+  el.className = 'cal';
+  const dow = ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => `<div>${d}</div>`).join('');
+  let cells = '';
+  for (let i = 0; i < lead; i++) cells += '<div class="day" style="opacity:.25"></div>';
+  for (let d = 1; d <= days; d++) {
+    cells += `<div class="day ${open.includes(d) ? 'open' : 'taken'}" data-d="${d}">${d}</div>`;
+  }
+  el.innerHTML = `<div class="cal-h"><span class="arrow">&#9664;</span>
+      <span class="ttl">${title}</span><span class="arrow">&#9654;</span></div>
+    <div class="dow">${dow}</div><div class="grid">${cells}</div>`;
+  host.appendChild(el);
+  return el;
+}
+const cal1 = buildCal(document.getElementById('s1cal'), { title: 'April 2026', lead: 3, days: 30 });
+const cal3 = buildCal(document.getElementById('s3cal'), { title: 'April 2026', lead: 3, days: 30 });
+
+// ===========================================================================
+// S1  HOOK 0.0–3.35 — the red wall builds one day at a time
+// ===========================================================================
+scene('s1', 0, 3.35);
+drift('s1', 0, 3.6, 1.02, 1.12);
+track('s1cal', [K(0, 0, 'translateY(40px) scale(.96)'), K(.5, 1, 'translateY(0px) scale(1)')]);
+cal1.querySelectorAll('.day.taken').forEach((d, i) => {
+  const at = .2 + i * .024;
+  track(d, [K(0, 0, 'scale(.5)'), K(at, 0, 'scale(.5)', SNAP), K(at + .3, 1, 'scale(1)')]);
+});
+track('s1veil', [{ t: 1.15, opacity: '0' }, { t: 1.6, opacity: '1' }], LIN);
+track('s1k', [{ t: 1.3, opacity: '0' }, { t: 1.65, opacity: '1' }]);
+slam('s1a', 1.45, .5);
+slam('s1b', 1.72, .5);
+track('s1c', [K(0, 0, 'translateY(60px) scale(1)'), K(1.99, 0, 'translateY(60px) scale(1)', SNAP),
+              K(2.49, 1, 'translateY(0px) scale(1)', 'ease-out'),
+              K(2.69, 1, 'translateY(0px) scale(1.07)', 'ease-in-out'),
+              K(2.92, 1, 'translateY(0px) scale(1)')]);
+track('s1d', [K(0, 0, 'translateY(24px)'), K(2.45, 0, 'translateY(24px)'), K(3.05, 1, 'translateY(0px)')]);
+
+// ===========================================================================
+// S2  PROMISE 3.4–7.0 — the number that buys the next 25 seconds
+// ===========================================================================
+scene('s2', 3.4, 7.0);
+drift('s2', 3.4, 3.8, 1.0, 1.05);
+track('s2k', [{ t: 3.5, opacity: '0' }, { t: 3.8, opacity: '1' }]);
+slam('s2a', 3.6, .6, 50);
+track('s2timer', [K(0, 0, 'scale(.9)'), K(4.0, 0, 'scale(.9)', SNAP), K(4.5, 1, 'scale(1)')]);
+track('s2num', [{ t: 5.55, transform: 'scale(1)', ease: 'ease-out' },
+                { t: 5.78, transform: 'scale(1.09)', ease: 'ease-in-out' },
+                { t: 6.0, transform: 'scale(1)' }]);
+num('s2num', 4.1, 1.45, 0, 29 * 60 + 14, mmss);
+track('s2fill', [{ t: 4.1, transform: 'scaleX(0)' }, { t: 5.55, transform: 'scaleX(1)' }], LIN);
+track('s2d', [K(0, 0, 'translateY(22px)'), K(5.7, 0, 'translateY(22px)'), K(6.2, 1, 'translateY(0px)')]);
+
+// ===========================================================================
+// S3  PROBLEM 7.05–11.35 — click through every branch, all red
+// ===========================================================================
+scene('s3', 7.05, 11.35);
+drift('s3', 7.05, 4.4, 1.0, 1.06);
+const BRANCHES = ['Downtown', 'Burnett Bayland', 'Spring Branch', 'Palm Center', 'Mickey Leland'];
+const SWITCH = 7.75, GAP = .56;
+track('s3k', [{ t: 7.1, opacity: '0' }, { t: 7.4, opacity: '1' }]);
+
+const selWp = [K(0, 0, 'translateY(20px)'), K(7.15, 0, 'translateY(20px)'), K(7.55, 1, 'translateY(0px)')];
+const calWp = [K(0, 0, 'translateY(28px)'), K(7.25, 0, 'translateY(28px)'), K(7.7, 1, 'translateY(0px)')];
+for (let i = 1; i < BRANCHES.length; i++) {
+  const at = SWITCH + (i - 1) * GAP;
+  selWp.push(K(at - .02, 1, 'translateY(0px)', 'ease-out'),
+             K(at + .09, 1, 'translateY(-8px)', 'ease-in'),
+             K(at + .2, 1, 'translateY(0px)'));
+  calWp.push(K(at - .02, 1, 'translateY(0px)', LIN),
+             K(at + .07, .3, 'translateY(6px)', LIN),
+             K(at + .24, 1, 'translateY(0px)'));
+}
+track('s3sel', selWp);
+track('s3cal', calWp);
+const s3branch = document.getElementById('s3branch');
+const s3title = cal3.querySelector('.ttl');
+seekHooks.push(t => {
+  const i = Math.max(0, Math.min(BRANCHES.length - 1, Math.floor((t - SWITCH + GAP) / GAP)));
+  s3branch.textContent = BRANCHES[i];
+  s3title.textContent = i % 2 ? 'May 2026' : 'April 2026';
+});
+track('s3stamp', [K(0, 0, 'rotate(-9deg) scale(1.8)'), K(9.95, 0, 'rotate(-9deg) scale(1.8)', 'ease-out'),
+                  K(10.22, 1, 'rotate(-9deg) scale(1)')]);
+track('s3math', [K(0, 0, 'translateY(30px)'), K(10.3, 0, 'translateY(30px)', SNAP), K(10.8, 1, 'translateY(0px)')]);
+
+// ===========================================================================
+// S4  SOLUTION 11.4–16.1 — the code, typed in
+// ===========================================================================
+scene('s4', 11.4, 16.1);
+drift('s4', 11.4, 4.8, 1.0, 1.05);
+track('s4k', [{ t: 11.45, opacity: '0' }, { t: 11.75, opacity: '1' }]);
+track('s4term', [K(0, 0, 'translateY(46px) scale(.97)'), K(11.5, 0, 'translateY(46px) scale(.97)'),
+                 K(12.1, 1, 'translateY(0px) scale(1)')]);
+document.querySelectorAll('#s4term .mono > div').forEach((line, i) => {
+  if (line.id === 's4cursor') return;
+  const at = 11.95 + i * .26;
+  track(line, [K(0, 0, 'translateX(-14px)'), K(at, 0, 'translateX(-14px)', 'ease-out'),
+               K(at + .26, 1, 'translateX(0px)')]);
+});
+seekHooks.push(t => {  // blinking caret
+  document.getElementById('s4cursor').style.opacity =
+    (t > 13.45 && t < 16.1 && Math.floor(t * 2) % 2 === 0) ? '1' : '0';
+});
+['s4c1', 's4c2', 's4c3'].forEach((id, i) => {
+  const at = 14.35 + i * .24;
+  track(id, [K(0, 0, 'translateY(24px)'), K(at, 0, 'translateY(24px)', SNAP), K(at + .4, 1, 'translateY(0px)')]);
+  track(id, [{ t: at + .2, borderColor: '#2A3140', color: '#9AA3B2' },
+             { t: at + .5, borderColor: 'rgb(31,214,95)', color: 'rgb(31,214,95)' }], LIN);
+});
+
+// ===========================================================================
+// S5  THE GRIND 16.15–21.75 — rows stack, then one goes green
+// ===========================================================================
+scene('s5', 16.15, 21.75);
+const LOG = [
+  ['01:30', 'no openings'], ['02:00', 'no openings'], ['03:30', 'no openings'],
+  ['04:00', 'no openings'], ['04:30', 'no openings'], ['05:30', 'no openings'],
+  ['06:02', '2 slots — Downtown'],
+];
+const HIT = 19.15;
+const rowsHost = document.getElementById('s5rows');
+LOG.forEach(([time, msg], i) => {
+  const hit = i === LOG.length - 1;
+  const r = document.createElement('div');
+  r.className = 'row' + (hit ? ' hit' : '');
+  r.style.marginBottom = '22px';
+  r.innerHTML = `<span class="dot${hit ? ' g' : ''}"></span><span class="t">${time}</span>
+                 <span class="m">${msg}</span>
+                 <span class="${hit ? 'green' : ''}" style="font-size:34px;">${hit ? '&#10003;' : '&times;'}</span>`;
+  rowsHost.appendChild(r);
+  if (hit) {
+    track(r, [K(0, 0, 'translateY(30px) scale(.96)'), K(HIT, 0, 'translateY(30px) scale(.96)', SNAP),
+              K(HIT + .5, 1, 'translateY(0px) scale(1)')]);
+  } else {
+    const at = 16.35 + i * .42;
+    track(r, [K(0, 0, 'translateY(26px)'), K(at, 0, 'translateY(26px)', SNAP),
+              K(at + .3, 1, 'translateY(0px)', LIN),
+              K(HIT, 1, 'translateY(0px)', LIN), K(HIT + .5, .28, 'translateY(0px)')]);
+  }
+});
+track('s5k', [{ t: 16.2, opacity: '0' }, { t: 16.5, opacity: '1', ease: LIN },
+              { t: HIT + .2, opacity: '1', ease: LIN }, { t: HIT + .5, opacity: '0' }], LIN);
+track('s5count', [{ t: 16.4, opacity: '0' }, { t: 16.8, opacity: '1', ease: LIN },
+                  { t: HIT + .25, opacity: '1', ease: LIN }, { t: HIT + .55, opacity: '0' }], LIN);
+num('s5n', 16.4, 2.4, 0, 143);
+// punch in on the green row
+track('s5rows', [{ t: HIT + .3, transform: 'scale(1) translateY(0px)' },
+                 { t: HIT + 1.05, transform: 'scale(1.22) translateY(-300px)' }]);
+
+// ===========================================================================
+// S6  EMAIL 21.8–25.75 — the payoff object
+// ===========================================================================
+scene('s6', 21.8, 25.75);
+drift('s6', 21.8, 4.0, 1.0, 1.05);
+track('s6k', [K(0, 0, 'translateY(16px)'), K(21.9, 0, 'translateY(16px)'), K(22.3, 1, 'translateY(0px)')]);
+track('s6mail', [K(0, 0, 'translateY(170px) scale(.94)'), K(22.0, 0, 'translateY(170px) scale(.94)', SNAP),
+                 K(22.8, 1, 'translateY(0px) scale(1)')]);
+track('s6mail', [{ t: 23.85, filter: 'brightness(1)' }, { t: 24.0, filter: 'brightness(1.14)' },
+                 { t: 24.2, filter: 'brightness(1)' }], LIN);
+document.querySelectorAll('#s6mail .li').forEach((li, i) => {
+  const at = 22.65 + i * .22;
+  track(li, [K(0, 0, 'translateX(-20px)'), K(at, 0, 'translateX(-20px)'), K(at + .35, 1, 'translateX(0px)')]);
+});
+track('s6cta', [K(0, 0, 'scale(.94)'), K(23.15, 0, 'scale(.94)', SNAP), K(23.55, 1, 'scale(1)', LIN),
+                K(23.8, 1, 'scale(1)', 'ease-out'), K(23.95, 1, 'scale(.93)', 'ease-in-out'),
+                K(24.15, 1, 'scale(1)')]);
+track('s6done', [K(0, 0, 'translateY(30px)'), K(24.2, 0, 'translateY(30px)', SNAP), K(24.75, 1, 'translateY(0px)')]);
+
+// ===========================================================================
+// S7  PAYOFF / CTA 25.8–28.85
+// ===========================================================================
+scene('s7', 25.8, 28.85, .25);
+drift('s7', 25.8, 3.2, 1.0, 1.04);
+track('s7a', [K(0, 0, 'translateY(40px)'), K(25.9, 0, 'translateY(40px)', SNAP), K(26.5, 1, 'translateY(0px)')]);
+document.getElementById('s7rule').style.transformOrigin = 'left';
+track('s7rule', [K(0, 0, 'scaleX(0)'), K(26.4, 0, 'scaleX(0)'), K(26.9, 1, 'scaleX(1)')]);
+track('s7b', [K(0, 0, 'translateY(28px)'), K(26.6, 0, 'translateY(28px)'), K(27.15, 1, 'translateY(0px)')]);
+track('s7c', [K(0, 0, 'translateY(24px) scale(1)'), K(27.2, 0, 'translateY(24px) scale(1)', SNAP),
+              K(27.75, 1, 'translateY(0px) scale(1)', LIN),
+              K(28.05, 1, 'translateY(0px) scale(1)', 'ease-out'),
+              K(28.3, 1, 'translateY(0px) scale(1.05)', 'ease-in-out'),
+              K(28.55, 1, 'translateY(0px) scale(1)')]);
+
+// ---------------------------------------------------------------------------
+// Cut flashes — one track, so they cannot pin each other to zero.
+// ---------------------------------------------------------------------------
+const flashes = [3.3, 11.28, HIT + .1];
+const fwp = [{ t: 0, opacity: '0' }];
+flashes.forEach(t => fwp.push({ t: t, opacity: '0', ease: LIN },
+                              { t: t + .07, opacity: '.85', ease: LIN },
+                              { t: t + .22, opacity: '0', ease: LIN }));
+track('flash', fwp, LIN);
+
+// ---------------------------------------------------------------------------
+// seek / play
+// ---------------------------------------------------------------------------
+window.__duration = D;
+window.__seek = function (t) {
+  const ms = t * 1000;
+  for (const a of anims) { try { a.currentTime = ms; } catch (e) {} }
+  for (const h of seekHooks) h(t);
+};
+window.__fit = function () {
+  const s = Math.min(window.innerWidth / 1080, window.innerHeight / 1920);
+  S.style.transform = `scale(${s})`;
+  document.body.style.height = (1920 * s) + 'px';
+};
+
+const params = new URLSearchParams(location.search);
+if (params.get('fit') !== '0') {
+  window.__fit();
+  window.addEventListener('resize', window.__fit);
+}
+if (params.get('play')) {
+  const t0 = performance.now();
+  (function loop(now) {
+    window.__seek(((now - t0) / 1000) % D);
+    requestAnimationFrame(loop);
+  })(t0);
+} else {
+  window.__seek(parseFloat(params.get('t') || '0'));
+}
+</script>
