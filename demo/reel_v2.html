@@ -1,0 +1,507 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Reel v2 — AI Unlocked</title>
+<style>
+  :root {
+    --ink: #0A0C11;
+    --paper: #F4F5F7;
+    --green: #1FD65F;
+    --red: #FF4B4B;
+    --amber: #FFB020;
+    --dim: #6B7280;
+    --sans: "Helvetica Neue", Helvetica, "Liberation Sans", Arial, sans-serif;
+    --mono: "SF Mono", ui-monospace, "DejaVu Sans Mono", "Liberation Mono", monospace;
+  }
+  html, body { margin: 0; background: #000; overflow: hidden; }
+  #stage {
+    position: relative; width: 1080px; height: 1920px;
+    background: var(--ink); overflow: hidden;
+    transform-origin: top left;
+    font-family: var(--sans); color: var(--paper);
+    -webkit-font-smoothing: antialiased;
+  }
+  .scene { position: absolute; inset: 0; opacity: 0; }
+  .c { position: absolute; }
+
+  /* ---------- type ---------- */
+  .kicker { font-size: 34px; font-weight: 700; letter-spacing: .22em;
+            text-transform: uppercase; color: #838C9B; }
+  .head   { font-size: 132px; font-weight: 800; letter-spacing: -.045em;
+            line-height: .92; max-width: 940px; }
+  .head.sm { font-size: 68px; line-height: 1.08; }
+  .head.xl { font-size: 176px; }
+  .sub    { font-size: 44px; font-weight: 500; color: #AAB3C2; line-height: 1.28;
+            max-width: 900px; }
+  .mono   { font-family: var(--mono); }
+  .green { color: var(--green); } .red { color: var(--red); } .amber { color: var(--amber); }
+
+  /* ---------- calendar ---------- */
+  .cal { width: 760px; border-radius: 28px; background: #12151D;
+         border: 1px solid #222836; padding: 30px; box-sizing: border-box; }
+  .cal-h { display: flex; justify-content: space-between; align-items: center;
+           margin-bottom: 22px; font-size: 36px; font-weight: 700; }
+  .cal-h .arrow { color: var(--dim); font-size: 30px; }
+  .dow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px;
+         font-size: 22px; color: var(--dim); text-align: center; margin-bottom: 10px;
+         font-weight: 700; letter-spacing: .08em; }
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+  .day { aspect-ratio: 1; border-radius: 14px; display: grid; place-items: center;
+         font-size: 30px; font-weight: 600; background: #171B25; color: #3C4453; }
+  .day.taken { background: rgba(255,75,75,.20); color: #FF8585; }
+  .day.open  { background: var(--green); color: #04210F; font-weight: 800; }
+
+  /* ---------- log rows ---------- */
+  .row { width: 800px; height: 92px; border-radius: 18px; background: #12151D;
+         border: 1px solid #222836; display: flex; align-items: center;
+         padding: 0 28px; box-sizing: border-box; gap: 22px;
+         font-family: var(--mono); font-size: 30px; }
+  .row .t { color: var(--dim); width: 130px; }
+  .row .m { flex: 1; color: #8A93A3; }
+  .row.hit { background: rgba(31,214,95,.12); border-color: rgba(31,214,95,.55); }
+  .row.hit .m { color: var(--green); font-weight: 700; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; background: #333B4A; }
+  .dot.g { background: var(--green); box-shadow: 0 0 24px rgba(31,214,95,.9); }
+
+  /* ---------- email card ---------- */
+  .mail { width: 820px; border-radius: 30px; overflow: hidden; background: #fff;
+          color: #111827; box-shadow: 0 50px 120px rgba(0,0,0,.7); }
+  .mail-h { background: var(--green); color: #04210F; padding: 34px 36px; }
+  .mail-h .st { font-size: 26px; font-weight: 700; opacity: .75; letter-spacing: .1em;
+                text-transform: uppercase; }
+  .mail-h .ti { font-size: 54px; font-weight: 800; letter-spacing: -.03em; margin-top: 8px; }
+  .mail-b { padding: 34px 36px 40px; }
+  .mail-b .li { display: flex; justify-content: space-between; align-items: center;
+                font-size: 36px; padding: 20px 0; border-bottom: 1px solid #E8EAEE; }
+  .mail-b .li b { font-weight: 700; }
+  .mail-b .li span { color: #6B7280; font-family: var(--mono); font-size: 32px; }
+  .cta { margin-top: 34px; background: #0A0C11; color: #fff; text-align: center;
+         border-radius: 16px; padding: 26px; font-size: 38px; font-weight: 700; }
+
+  /* ---------- misc ---------- */
+  .chip { display: inline-block; padding: 14px 28px; border-radius: 999px;
+          border: 2px solid #2A3140; font-size: 32px; font-weight: 700; color: #9AA3B2; }
+  .chip.on { border-color: var(--green); color: var(--green); }
+  .bar { height: 8px; background: #1A1F2A; border-radius: 99px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 100%; background: var(--green);
+             transform-origin: left; }
+  .rule { height: 2px; background: #222836; }
+  .stamp { border: 8px solid var(--red); color: var(--red); font-weight: 800;
+           font-size: 72px; letter-spacing: .04em; padding: 18px 40px; border-radius: 14px; }
+  .vig { position: absolute; inset: 0; pointer-events: none;
+         background: radial-gradient(ellipse at 50% 46%, transparent 60%, rgba(0,0,0,.5) 100%); }
+  .grain { position: absolute; inset: -20%; opacity: .05; pointer-events: none;
+           background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  #flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+  /* Reels UI keep-out: nothing important below y=1400 or above y=250. */
+</style>
+<style>
+  /* ---------- v2 additions ---------- */
+  .win { width: 880px; background: #ECE9D8; border: 2px solid #0A246A; border-radius: 10px 10px 4px 4px;
+         box-shadow: 0 40px 90px rgba(0,0,0,.6); overflow: hidden; font-family: Tahoma, Verdana, Arial, sans-serif; }
+  .win-title { background: linear-gradient(#0A246A, #3A6EA5); color: #fff; font-weight: 700; font-size: 26px;
+               padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; }
+  .win-title .btns span { display: inline-block; width: 30px; height: 26px; margin-left: 6px; background: #D4D0C8;
+                          border: 1px solid #fff; border-right-color: #404040; border-bottom-color: #404040;
+                          color: #000; font-size: 18px; text-align: center; line-height: 24px; }
+  .win-tools { background: #ECE9D8; border-bottom: 1px solid #ACA899; padding: 10px 18px; display: flex; gap: 12px;
+               align-items: center; font-size: 22px; color: #333; }
+  .win-tools .addr { flex: 1; background: #fff; border: 1px solid #7F9DB9; padding: 6px 12px; color: #000; font-size: 22px; }
+  .win-body { background: #fff; padding: 22px; color: #000; }
+  .rsel { border: 1px solid #7F9DB9; background: #fff; height: 62px; display: flex; align-items: center;
+          justify-content: space-between; padding: 0 16px; font-size: 28px; color: #000; margin-bottom: 16px; }
+  .rsel .arr { width: 40px; height: 44px; background: #DDE4F0; border: 1px solid #7F9DB9; display: grid; place-items: center; font-size: 20px; }
+  .rcal { border: 1px solid #aaa; }
+  .rcal .rh { background: #3A9A6A; color: #fff; text-align: center; font-weight: 700; font-size: 28px; padding: 12px; display: flex; justify-content: space-between; }
+  .rcal .rdow { display: grid; grid-template-columns: repeat(7,1fr); background: #3A9A6A; color: #fff; font-size: 20px; font-weight: 700; text-align: center; padding-bottom: 8px; }
+  .rcal .rgrid { display: grid; grid-template-columns: repeat(7,1fr); }
+  .rcal .rd { height: 88px; display: grid; place-items: center; font-size: 30px; font-weight: 700; border: 2px solid #fff; background: #f0f0f0; color: #bbb; }
+  .rcal .rd.taken { background: #E8473F; color: #fff; }
+  .rcal .rd.open { background: #fff; color: #1a4fd6; text-decoration: underline; border-color: #ddd; }
+  .bubble { background: #1F6FEB; color: #fff; border-radius: 30px 30px 8px 30px; padding: 28px 34px; font-size: 40px;
+            line-height: 1.3; font-weight: 500; max-width: 860px; box-shadow: 0 30px 80px rgba(0,0,0,.5); }
+  .bubble.in { background: #1E2430; color: #F4F5F7; border-radius: 30px 30px 30px 8px; }
+  .dmbox { background: #fff; color: #111; border-radius: 34px; padding: 26px 30px; display: flex; align-items: center; gap: 22px;
+           width: 900px; box-sizing: border-box; box-shadow: 0 40px 100px rgba(0,0,0,.6); }
+  .dmbox .field { flex: 1; border: 2px solid #E5E7EB; border-radius: 999px; padding: 18px 28px; font-size: 44px; font-weight: 700; color: #111; min-height: 60px; }
+  .dmbox .send { width: 84px; height: 84px; border-radius: 50%; background: #1F6FEB; color: #fff; display: grid; place-items: center; font-size: 40px; }
+  .caret { display: inline-block; width: 4px; height: 1em; background: currentColor; vertical-align: -0.15em; margin-left: 2px; }
+</style>
+<div id="stage">
+  <!-- ============ S1  HOOK  0.0–4.2 ============ -->
+  <div class="scene" id="s1">
+    <div class="c" id="s1cal" style="left:180px; top:200px; transform-origin:50% 0;"></div>
+    <div class="c" id="s1veil" style="left:0; top:0; width:1080px; height:1920px;
+         background:linear-gradient(180deg,rgba(10,12,17,.15) 0%,rgba(10,12,17,.75) 40%,rgba(10,12,17,.94) 58%);"></div>
+    <div class="c" id="s1a" style="left:86px; top:800px;"><div class="head xl">ZERO</div></div>
+    <div class="c" id="s1b" style="left:86px; top:960px;"><div class="head red" style="font-size:112px;">APPOINTMENTS.</div></div>
+    <div class="c" id="s1k" style="left:90px; top:1085px;"><div class="kicker">for months</div></div>
+    <div class="c" id="s1c" style="left:86px; top:700px;"><div class="head xl green">10 MIN.</div></div>
+    <div class="c" id="s1d" style="left:90px; top:900px;"><div class="kicker">in and out</div></div>
+    <div class="c" id="s1e" style="left:92px; top:980px;"><div class="sub">Same office. Same site.</div></div>
+  </div>
+
+  <!-- ============ S2  MYSPACE  4.2–9.3 ============ -->
+  <div class="scene" id="s2">
+    <div class="c" id="s2win" style="left:100px; top:300px;">
+      <div class="win">
+        <div class="win-title"><span>Appointments - Microsoft Internet Explorer</span><span class="btns"><span>_</span><span>&#9633;</span><span>&times;</span></span></div>
+        <div class="win-tools"><span>&#8592;</span><span>&#8594;</span><span class="addr">http://www.hctax.net/Auto/Appointments</span></div>
+        <div class="win-body">
+          <div class="rsel"><span id="s2branch">Downtown</span><span class="arr">&#9660;</span></div>
+          <div id="s2cal"></div>
+        </div>
+      </div>
+    </div>
+    <div class="c" id="s2k" style="left:90px; top:1170px;"><div class="kicker">straight out of myspace</div></div>
+    <div class="c" id="s2t" style="left:90px; top:1225px;">
+      <div class="head sm">One branch.</div>
+      <div class="head sm red">One month at a time.</div>
+    </div>
+  </div>
+
+  <!-- ============ S3  SOMEBODY  9.3–11.4 ============ -->
+  <div class="scene" id="s3">
+    <div class="c" id="s3k" style="left:90px; top:300px;"><div class="kicker">somebody&rsquo;s getting those</div></div>
+    <div class="c" id="s3cal" style="left:100px; top:380px; width:880px; background:#fff; padding:22px; box-sizing:border-box; border-radius:12px;"></div>
+    <div class="c" id="s3t" style="left:90px; top:1180px;">
+      <div class="head sm">Gone before</div>
+      <div class="head sm red">you refresh.</div>
+    </div>
+  </div>
+
+  <!-- ============ S4  AI SCRIPT  11.4–17.0 ============ -->
+  <div class="scene" id="s4">
+    <div class="c" id="s4k" style="left:90px; top:280px;"><div class="kicker">so i asked ai</div></div>
+    <div class="c" id="s4bub" style="left:110px; top:345px;">
+      <div class="bubble"><span id="s4txt"></span><span class="caret" id="s4car"></span></div>
+    </div>
+    <div class="c" id="s4term" style="left:90px; top:720px; width:900px;">
+      <div style="background:#0E1118;border:1px solid #222836;border-radius:22px;overflow:hidden;">
+        <div style="display:flex;gap:12px;padding:22px 26px;border-bottom:1px solid #1A1F2A;">
+          <span class="dot" style="background:#FF5F57"></span><span class="dot" style="background:#FEBC2E"></span><span class="dot" style="background:#28C840"></span>
+          <span class="mono" style="margin-left:18px;color:#4B5565;font-size:26px;">checker.py</span>
+        </div>
+        <div class="mono" style="padding:30px 30px 34px;font-size:30px;line-height:1.65;">
+          <div style="color:#4B5565;"># every 30 minutes</div>
+          <div><span style="color:#7C8496;">for</span> branch <span style="color:#7C8496;">in</span> <span class="green">branches</span>:</div>
+          <div style="padding-left:44px;">days = <span class="amber">read_calendar</span>(branch)</div>
+          <div style="padding-left:44px;"><span style="color:#7C8496;">if</span> days: <span class="green">email_me</span>(days)</div>
+        </div>
+      </div>
+    </div>
+    <div class="c" id="s4chips" style="left:90px; top:1250px;">
+      <span class="chip" id="s4c1">every 30 min</span>
+      <span class="chip" id="s4c2">emails me</span>
+      <span class="chip" id="s4c3">$0</span>
+    </div>
+  </div>
+
+  <!-- ============ S5  PAYOFF  17.0–19.4 ============ -->
+  <div class="scene" id="s5">
+    <div class="c" id="s5k" style="left:90px; top:400px;"><div class="kicker green">6:02 am &middot; 1 new email</div></div>
+    <div class="c" id="s5mail" style="left:130px; top:480px;">
+      <div class="mail">
+        <div class="mail-h"><div class="st">Appointment monitor</div><div class="ti">A date just opened</div></div>
+        <div class="mail-b">
+          <div class="li" style="border-bottom:none;"><b>Downtown</b><span>Apr 7</span></div>
+          <div class="cta" id="s5cta">Book Now &rarr;</div>
+        </div>
+      </div>
+    </div>
+    <div class="c" id="s5done" style="left:90px; top:1190px;">
+      <div class="head sm green">Booked.</div>
+      <div class="sub" style="margin-top:10px;">Ten minutes at the counter. Done.</div>
+    </div>
+  </div>
+
+  <!-- ============ S6  BRIDGE  19.4–24.0 ============ -->
+  <div class="scene" id="s6">
+    <div class="c" id="s6a" style="left:86px; top:600px;">
+      <div class="head">NOT A</div>
+      <div class="head">CAR STORY.</div>
+    </div>
+    <div class="c" id="s6rule" style="left:90px; top:880px; width:900px;"><div class="rule"></div></div>
+    <div class="c" id="s6b" style="left:90px; top:920px;">
+      <div class="head sm green">AI on any bottleneck</div>
+      <div class="head sm">in your business.</div>
+    </div>
+    <div class="c" id="s6chips" style="left:90px; top:1130px; width:900px; line-height:2.2;">
+      <span class="chip" id="s6c1">quotes</span> <span class="chip" id="s6c2">scheduling</span> <span class="chip" id="s6c3">follow-ups</span>
+      <span class="chip" id="s6c4">inventory</span> <span class="chip" id="s6c5">invoices</span> <span class="chip" id="s6c6">waiting on hold</span>
+    </div>
+  </div>
+
+  <!-- ============ S7  CTA  24.0–28.75 ============ -->
+  <div class="scene" id="s7">
+    <div class="c" id="s7k" style="left:90px; top:560px;"><div class="kicker">houston business owner?</div></div>
+    <div class="c" id="s7a" style="left:86px; top:620px;">
+      <div class="head">DM ME</div>
+      <div class="head green">&ldquo;UNLOCK&rdquo;</div>
+    </div>
+    <div class="c" id="s7dm" style="left:90px; top:930px;">
+      <div class="dmbox"><div class="field"><span id="s7txt"></span><span class="caret" id="s7car"></span></div><div class="send">&#10148;</div></div>
+    </div>
+    <div class="c" id="s7b" style="left:92px; top:1130px;"><div class="sub">I&rsquo;ll show you where to start.</div></div>
+    <div class="c" id="s7c" style="left:90px; top:1230px;"><div class="kicker green">AI Unlocked &middot; Houston</div></div>
+  </div>
+
+  <div class="vig"></div>
+  <div class="grain"></div>
+  <div id="flash"></div>
+</div>
+
+<script>
+const S = document.getElementById('stage');
+const D = 29.0;
+const anims = [];
+const seekHooks = [];
+const EASE = 'cubic-bezier(.16,1,.3,1)';      // soft, expensive-looking settle
+const SNAP = 'cubic-bezier(.2,.9,.25,1.2)';   // slight overshoot
+const LIN  = 'linear';
+
+/**
+ * track(el, [{t, ...cssProps, ease}], defaultEase)
+ * `ease` on a waypoint governs the segment that STARTS at that waypoint.
+ */
+function track(el, waypoints, defaultEase = EASE) {
+  if (typeof el === 'string') el = document.getElementById(el);
+  if (!el || !waypoints.length) return;
+  const frames = waypoints.map(w => {
+    const { t, ease, ...props } = w;
+    return { offset: Math.min(1, Math.max(0, t / D)), easing: ease || defaultEase, ...props };
+  });
+  frames.sort((a, b) => a.offset - b.offset);
+  if (frames[0].offset > 0) frames.unshift({ ...frames[0], offset: 0, easing: LIN });
+  const last = frames[frames.length - 1];
+  if (last.offset < 1) frames.push({ ...last, offset: 1, easing: LIN });
+  const a = el.animate(frames, { duration: D * 1000, fill: 'both', easing: LIN });
+  a.pause();
+  anims.push(a);
+  return a;
+}
+
+/** opacity + transform waypoint */
+const K = (t, opacity, transform, ease) => ({ t, opacity: String(opacity), transform, ease });
+
+/** Fade a scene in at `tin`, out at `tout`. */
+function scene(id, tin, tout, fade = .22) {
+  track(id, [
+    { t: 0, opacity: '0' }, { t: tin, opacity: '0', ease: LIN },
+    { t: tin + fade, opacity: '1', ease: LIN },
+    { t: tout, opacity: '1', ease: LIN },
+    { t: tout + fade, opacity: '0', ease: LIN },
+  ], LIN);
+}
+
+/** Slow push-in, so no shot ever sits perfectly still. */
+function drift(id, start, dur, from = 1, to = 1.06) {
+  const el = document.getElementById(id);
+  el.style.transformOrigin = '50% 45%';
+  track(el, [
+    { t: 0, transform: `scale(${from})` },
+    { t: start, transform: `scale(${from})`, ease: LIN },
+    { t: start + dur, transform: `scale(${to})`, ease: LIN },
+  ], LIN);
+}
+
+/** Rise-and-settle entrance. */
+function slam(el, start, dur = .6, dy = 60, ease = SNAP) {
+  track(el, [K(0, 0, `translateY(${dy}px)`), K(start, 0, `translateY(${dy}px)`, ease),
+             K(start + dur, 1, 'translateY(0px)')]);
+}
+
+/** Counting number, driven on seek rather than by interpolation. */
+function num(el, start, dur, from, to, fmt = v => Math.round(v)) {
+  if (typeof el === 'string') el = document.getElementById(el);
+  seekHooks.push(t => {
+    const p = Math.min(1, Math.max(0, (t - start) / dur));
+    el.textContent = fmt(from + (to - from) * (1 - Math.pow(1 - p, 3)));
+  });
+}
+const mmss = v => {
+  const s = Math.round(v);
+  return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+};
+
+
+// ---------------------------------------------------------------------------
+// builders
+// ---------------------------------------------------------------------------
+function buildCal(host, { title, lead, days, open = [] }) {
+  const el = document.createElement('div'); el.className = 'cal';
+  const dow = ['S','M','T','W','T','F','S'].map(d => `<div>${d}</div>`).join('');
+  let cells = '';
+  for (let i = 0; i < lead; i++) cells += '<div class="day" style="opacity:.25"></div>';
+  for (let d = 1; d <= days; d++) cells += `<div class="day ${open.includes(d) ? 'open' : 'taken'}" data-d="${d}">${d}</div>`;
+  el.innerHTML = `<div class="cal-h"><span class="arrow">&#9664;</span><span class="ttl">${title}</span><span class="arrow">&#9654;</span></div>
+    <div class="dow">${dow}</div><div class="grid">${cells}</div>`;
+  host.appendChild(el); return el;
+}
+function buildRetroCal(host, { title, lead, days, open = [] }) {
+  const el = document.createElement('div'); el.className = 'rcal';
+  const dow = ['SU','MO','TU','WE','TH','FR','SA'].map(d => `<div>${d}</div>`).join('');
+  let cells = '';
+  for (let i = 0; i < lead; i++) cells += '<div class="rd"></div>';
+  for (let d = 1; d <= days; d++) cells += `<div class="rd ${open.includes(d) ? 'open' : 'taken'}" data-d="${d}">${d}</div>`;
+  el.innerHTML = `<div class="rh"><span>&#9664;</span><span class="ttl">${title}</span><span>&#9654;</span></div>
+    <div class="rdow">${dow}</div><div class="rgrid">${cells}</div>`;
+  host.appendChild(el); return el;
+}
+const cal1 = buildCal(document.getElementById('s1cal'), { title: 'April 2026', lead: 3, days: 30 });
+const cal2 = buildRetroCal(document.getElementById('s2cal'), { title: 'April 2026', lead: 3, days: 30 });
+const cal3 = buildRetroCal(document.getElementById('s3cal'), { title: 'April 2026', lead: 3, days: 30 });
+
+/** Reveal text character by character between start and end (driven on seek). */
+function typeIn(spanId, caretId, text, start, end, hideCaretAt) {
+  const span = document.getElementById(spanId), caret = document.getElementById(caretId);
+  seekHooks.push(t => {
+    const p = Math.min(1, Math.max(0, (t - start) / (end - start)));
+    span.textContent = text.slice(0, Math.round(text.length * p));
+    caret.style.opacity = (t >= start && t < hideCaretAt && Math.floor(t * 3) % 2 === 0) ? '1' : '0';
+  });
+}
+
+// ===========================================================================
+// S1  HOOK 0.0–4.0 — impact open, then the contrast
+// ===========================================================================
+scene('s1', 0, 3.98, .12);
+track('s1cal', [K(0, 0, 'scale(1.5)', 'ease-out'), K(.05, 0, 'scale(1.45)', 'ease-out'), K(.3, 1, 'scale(.8)', LIN),
+                K(1.95, 1, 'scale(.8)', 'ease-in'), K(2.15, 0, 'scale(.72) translateY(-60px)')]);
+track('s1veil', [{ t: 0, opacity: '0' }, { t: .35, opacity: '0', ease: LIN }, { t: .7, opacity: '1' }], LIN);
+track('s1a', [K(0, 0, 'translateY(50px)'), K(.4, 0, 'translateY(50px)', SNAP), K(.75, 1, 'translateY(0px)', LIN),
+              K(1.95, 1, 'translateY(0px)', 'ease-in'), K(2.15, 0, 'translateY(-40px)')]);
+track('s1b', [K(0, 0, 'translateY(50px)'), K(.65, 0, 'translateY(50px)', SNAP), K(1.0, 1, 'translateY(0px)', LIN),
+              K(1.95, 1, 'translateY(0px)', 'ease-in'), K(2.15, 0, 'translateY(-40px)')]);
+track('s1k', [{ t: 1.1, opacity: '0' }, { t: 1.4, opacity: '1', ease: LIN }, { t: 1.95, opacity: '1', ease: LIN }, { t: 2.1, opacity: '0' }]);
+track('s1c', [K(0, 0, 'scale(1.6)'), K(2.15, 0, 'scale(1.6)', 'ease-out'), K(2.42, 1, 'scale(1)', 'ease-out'),
+              K(2.6, 1, 'scale(1.06)', 'ease-in-out'), K(2.8, 1, 'scale(1)')]);
+track('s1d', [K(0, 0, 'translateY(20px)'), K(2.55, 0, 'translateY(20px)'), K(2.9, 1, 'translateY(0px)')]);
+track('s1e', [K(0, 0, 'translateY(20px)'), K(3.0, 0, 'translateY(20px)'), K(3.4, 1, 'translateY(0px)')]);
+document.getElementById('s1c').style.transformOrigin = 'left center';
+
+// ===========================================================================
+// S2  MYSPACE 4.2–9.1 — retro browser, dropdown cycling, all red
+// ===========================================================================
+scene('s2', 4.2, 9.08);
+drift('s2', 4.2, 5.0, 1.0, 1.05);
+track('s2win', [K(0, 0, 'translateY(60px) scale(.96)'), K(4.25, 0, 'translateY(60px) scale(.96)', SNAP), K(4.85, 1, 'translateY(0px) scale(1)')]);
+const BR = ['Downtown', 'Burnett Bayland', 'Spring Branch', 'Palm Center', 'Mickey Leland'];
+const SW = 5.6, GP = .62;
+const s2wp = [K(0, 1, 'translateY(0px)')];
+for (let i = 1; i < BR.length; i++) {
+  const at = SW + (i - 1) * GP;
+  s2wp.push(K(at - .02, 1, 'translateY(0px)', LIN), K(at + .08, .35, 'translateY(4px)', LIN), K(at + .26, 1, 'translateY(0px)'));
+}
+track('s2cal', s2wp);
+const s2branch = document.getElementById('s2branch'), s2title = cal2.querySelector('.ttl');
+seekHooks.push(t => {
+  const i = Math.max(0, Math.min(BR.length - 1, Math.floor((t - SW + GP) / GP)));
+  s2branch.textContent = BR[i]; s2title.textContent = i % 2 ? 'May 2026' : 'April 2026';
+});
+track('s2k', [{ t: 6.3, opacity: '0' }, { t: 6.6, opacity: '1' }]);
+track('s2t', [K(0, 0, 'translateY(28px)'), K(6.5, 0, 'translateY(28px)', SNAP), K(7.0, 1, 'translateY(0px)')]);
+
+// ===========================================================================
+// S3  SOMEBODY 9.3–11.2 — a slot flashes open, then it's gone
+// ===========================================================================
+scene('s3', 9.3, 11.18);
+drift('s3', 9.3, 2.0, 1.0, 1.06);
+track('s3k', [{ t: 9.35, opacity: '0' }, { t: 9.6, opacity: '1' }]);
+track('s3cal', [K(0, 0, 'translateY(30px)'), K(9.3, 0, 'translateY(30px)'), K(9.65, 1, 'translateY(0px)')]);
+[[14, 9.75], [22, 10.2], [8, 10.65]].forEach(([d, at]) => {
+  const cell = cal3.querySelector(`.rd[data-d="${d}"]`);
+  track(cell, [{ t: 0, backgroundColor: '#E8473F', color: '#fff' },
+               { t: at, backgroundColor: '#E8473F', color: '#fff', ease: LIN },
+               { t: at + .05, backgroundColor: '#ffffff', color: '#1a4fd6', ease: LIN },
+               { t: at + .3, backgroundColor: '#ffffff', color: '#1a4fd6', ease: LIN },
+               { t: at + .36, backgroundColor: '#E8473F', color: '#fff', ease: LIN }], LIN);
+});
+track('s3t', [K(0, 0, 'translateY(28px)'), K(10.3, 0, 'translateY(28px)', SNAP), K(10.75, 1, 'translateY(0px)')]);
+
+// ===========================================================================
+// S4  AI SCRIPT 11.4–16.8 — the prompt, then the code
+// ===========================================================================
+scene('s4', 11.4, 16.78);
+drift('s4', 11.4, 5.4, 1.0, 1.04);
+track('s4k', [{ t: 11.45, opacity: '0' }, { t: 11.75, opacity: '1' }]);
+track('s4bub', [K(0, 0, 'translateY(30px) scale(.96)'), K(11.5, 0, 'translateY(30px) scale(.96)', SNAP), K(11.95, 1, 'translateY(0px) scale(1)')]);
+typeIn('s4txt', 's4car', 'Write me a script that checks this page every 30 minutes and emails me when a date opens.', 11.95, 14.1, 14.4);
+track('s4term', [K(0, 0, 'translateY(46px) scale(.97)'), K(14.2, 0, 'translateY(46px) scale(.97)'), K(14.75, 1, 'translateY(0px) scale(1)')]);
+document.querySelectorAll('#s4term .mono > div').forEach((line, i) => {
+  const at = 14.55 + i * .22;
+  track(line, [K(0, 0, 'translateX(-14px)'), K(at, 0, 'translateX(-14px)', 'ease-out'), K(at + .24, 1, 'translateX(0px)')]);
+});
+['s4c1', 's4c2', 's4c3'].forEach((id, i) => {
+  const at = 15.6 + i * .22;
+  track(id, [K(0, 0, 'translateY(24px)'), K(at, 0, 'translateY(24px)', SNAP), K(at + .4, 1, 'translateY(0px)')]);
+  track(id, [{ t: at + .2, borderColor: '#2A3140', color: '#9AA3B2' }, { t: at + .5, borderColor: 'rgb(31,214,95)', color: 'rgb(31,214,95)' }], LIN);
+});
+
+// ===========================================================================
+// S5  PAYOFF 17.0–19.2 — the email, the tap, booked
+// ===========================================================================
+scene('s5', 17.0, 19.18);
+drift('s5', 17.0, 2.3, 1.0, 1.05);
+track('s5k', [K(0, 0, 'translateY(16px)'), K(17.05, 0, 'translateY(16px)'), K(17.35, 1, 'translateY(0px)')]);
+track('s5mail', [K(0, 0, 'translateY(170px) scale(.94)'), K(17.1, 0, 'translateY(170px) scale(.94)', SNAP), K(17.7, 1, 'translateY(0px) scale(1)')]);
+track('s5cta', [K(0, 1, 'scale(1)'), K(18.05, 1, 'scale(1)', 'ease-out'), K(18.18, 1, 'scale(.93)', 'ease-in-out'), K(18.35, 1, 'scale(1)')]);
+track('s5done', [K(0, 0, 'translateY(30px)'), K(18.35, 0, 'translateY(30px)', SNAP), K(18.8, 1, 'translateY(0px)')]);
+
+// ===========================================================================
+// S6  BRIDGE 19.4–23.8 — from car story to their business
+// ===========================================================================
+scene('s6', 19.4, 23.78);
+drift('s6', 19.4, 4.4, 1.0, 1.04);
+track('s6a', [K(0, 0, 'translateY(40px)'), K(19.45, 0, 'translateY(40px)', SNAP), K(20.0, 1, 'translateY(0px)')]);
+document.getElementById('s6rule').style.transformOrigin = 'left';
+track('s6rule', [K(0, 0, 'scaleX(0)'), K(20.6, 0, 'scaleX(0)'), K(21.1, 1, 'scaleX(1)')]);
+track('s6b', [K(0, 0, 'translateY(28px)'), K(20.9, 0, 'translateY(28px)', SNAP), K(21.4, 1, 'translateY(0px)')]);
+['s6c1','s6c2','s6c3','s6c4','s6c5','s6c6'].forEach((id, i) => {
+  const at = 21.9 + i * .2;
+  track(id, [K(0, 0, 'translateY(20px)'), K(at, 0, 'translateY(20px)', SNAP), K(at + .35, 1, 'translateY(0px)')]);
+});
+
+// ===========================================================================
+// S7  CTA 24.0–28.75
+// ===========================================================================
+scene('s7', 24.0, 28.75, .25);
+drift('s7', 24.0, 5.0, 1.0, 1.04);
+track('s7k', [{ t: 24.05, opacity: '0' }, { t: 24.35, opacity: '1' }]);
+track('s7a', [K(0, 0, 'translateY(40px)'), K(24.15, 0, 'translateY(40px)', SNAP), K(24.7, 1, 'translateY(0px)')]);
+track('s7dm', [K(0, 0, 'translateY(40px) scale(.96)'), K(24.9, 0, 'translateY(40px) scale(.96)', SNAP), K(25.4, 1, 'translateY(0px) scale(1)')]);
+typeIn('s7txt', 's7car', 'UNLOCK', 25.5, 26.2, 27.0);
+track('s7b', [K(0, 0, 'translateY(20px)'), K(26.3, 0, 'translateY(20px)'), K(26.7, 1, 'translateY(0px)')]);
+track('s7c', [{ t: 26.6, opacity: '0' }, { t: 26.95, opacity: '1' }]);
+
+// cut flashes
+const fwp = [{ t: 0, opacity: '0' }];
+[0.02, 2.13, 16.95].forEach(t => fwp.push({ t, opacity: '0', ease: LIN }, { t: t + .06, opacity: '.9', ease: LIN }, { t: t + .22, opacity: '0', ease: LIN }));
+track('flash', fwp, LIN);
+
+window.__duration = D;
+window.__seek = function (t) {
+  const ms = t * 1000;
+  for (const a of anims) { try { a.currentTime = ms; } catch (e) {} }
+  for (const h of seekHooks) h(t);
+};
+window.__fit = function () {
+  const s = Math.min(window.innerWidth / 1080, window.innerHeight / 1920);
+  S.style.transform = `scale(${s})`;
+  document.body.style.height = (1920 * s) + 'px';
+};
+
+const params = new URLSearchParams(location.search);
+if (params.get('fit') !== '0') {
+  window.__fit();
+  window.addEventListener('resize', window.__fit);
+}
+if (params.get('play')) {
+  const t0 = performance.now();
+  (function loop(now) {
+    window.__seek(((now - t0) / 1000) % D);
+    requestAnimationFrame(loop);
+  })(t0);
+} else {
+  window.__seek(parseFloat(params.get('t') || '0'));
+}
+</script>

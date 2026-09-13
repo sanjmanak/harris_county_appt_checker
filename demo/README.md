@@ -85,4 +85,12 @@ If you want to cut real footage in, the edit is:
 Both sections are self-contained scenes, so you can cut them out without
 breaking anything around them.
 
+## The v2 reel — `reel_v2.html`
+
+Same engine, new scenes, cut to `script_v2.txt`. Render it with:
+
+```bash
+python render_reel.py --page reel_v2.html --out out/reel_v2.mp4
+```
+
 Scripts and captions: [SCRIPTS.md](SCRIPTS.md).

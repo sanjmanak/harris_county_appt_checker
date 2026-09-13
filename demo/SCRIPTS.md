@@ -1,3 +1,5 @@
+> **Current script: [`script_v2.txt`](script_v2.txt)** — the consulting cut for AI Unlocked, refined through three passes (Hormozi, Godin, short-form editor). It pairs with `reel_v2.html`. The three scripts below are the earlier tool-focused cuts for `reel.html`.
+
 # Three reel scripts
 
 All three are 29–32s, built for the same retention shape:
