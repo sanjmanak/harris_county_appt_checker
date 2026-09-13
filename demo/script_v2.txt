@@ -1,17 +1,17 @@
 AI UNLOCKED — REEL SCRIPT v2  (read this, brisk and flat, no pauses between lines)
 =====================================================================================
-Target: 28 seconds. 80 words. Cuts happen on the line breaks, so start each line
+Target: 29 seconds. 81 words. Cuts happen on the line breaks, so start each line
 on its time and let the edit do the pacing. Do not slow down for the joke.
 
-0:00  Zero appointments. For months.
-0:02  I was in and out in ten minutes.
-0:04  The site looks straight out of MySpace. One branch, one month at a time.
-0:09  But somebody's getting those slots.
-0:11  So I had AI write a script: check every thirty minutes, email me when a date opens.
+0:00  Harris County had zero appointments to register my car. For months.
+0:03  I was in and out in ten minutes.
+0:05  The site's straight out of MySpace. One branch, one month at a time.
+0:10  But somebody's getting those slots.
+0:12  So I had AI write a script that emails me the moment a date opens.
 0:17  It did. I booked it. Done.
-0:19  That's not a car story. That's AI on any bottleneck in your business.
+0:19  Not a car story. That's AI on any bottleneck in your business.
 0:24  Houston business owner? DM me UNLOCK. I'll show you where to start.
-0:28  (end)
+0:29  (end)
 
 Say "UNLOCK" clearly, one word, slight emphasis. It is the keyword on screen.
 
@@ -20,9 +20,12 @@ WHY IT CHANGED  (three passes: Hormozi, Godin, a short-form editor)
 -------------------------------------------------------------------------------------
 - Hook. Your draft opened with "I got my registration done in under 10 minutes,
   using AI." All three passes flagged that as resolving the story in sentence one.
-  Now the first two seconds set the stakes ("zero appointments, for months") and the
-  next two pay off the contrast ("in and out in ten minutes"). That is an open loop:
-  how? The viewer stays to find out.
+  Now the first line names the place and the errand ("Harris County", "register my
+  car") so every Houston viewer who has fought that page recognizes it instantly,
+  then sets the stakes ("zero appointments, for months"). The next line pays off the
+  contrast ("in and out in ten minutes"). That is an open loop: how? The viewer
+  stays to find out. Houston comes back by name in the last line, so the reel opens
+  and closes local.
 - Specific beats vague. "Full day process, waiting for hours, quite the nightmare"
   became "one branch, one month at a time." Specific details read as true; adjectives
   read as complaining.

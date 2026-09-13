@@ -132,9 +132,10 @@
     <div class="c" id="s1cal" style="left:180px; top:200px; transform-origin:50% 0;"></div>
     <div class="c" id="s1veil" style="left:0; top:0; width:1080px; height:1920px;
          background:linear-gradient(180deg,rgba(10,12,17,.15) 0%,rgba(10,12,17,.75) 40%,rgba(10,12,17,.94) 58%);"></div>
-    <div class="c" id="s1a" style="left:86px; top:800px;"><div class="head xl">ZERO</div></div>
-    <div class="c" id="s1b" style="left:86px; top:960px;"><div class="head red" style="font-size:112px;">APPOINTMENTS.</div></div>
-    <div class="c" id="s1k" style="left:90px; top:1085px;"><div class="kicker">for months</div></div>
+    <div class="c" id="s1h" style="left:90px; top:760px;"><div class="kicker">harris county &middot; car registration</div></div>
+    <div class="c" id="s1a" style="left:86px; top:815px;"><div class="head xl">ZERO</div></div>
+    <div class="c" id="s1b" style="left:86px; top:975px;"><div class="head red" style="font-size:112px;">APPOINTMENTS.</div></div>
+    <div class="c" id="s1k" style="left:90px; top:1100px;"><div class="kicker">for months</div></div>
     <div class="c" id="s1c" style="left:86px; top:700px;"><div class="head xl green">10 MIN.</div></div>
     <div class="c" id="s1d" style="left:90px; top:900px;"><div class="kicker">in and out</div></div>
     <div class="c" id="s1e" style="left:92px; top:980px;"><div class="sub">Same office. Same site.</div></div>
@@ -252,7 +253,7 @@
 
 <script>
 const S = document.getElementById('stage');
-const D = 29.0;
+const D = 30.0;
 const anims = [];
 const seekHooks = [];
 const EASE = 'cubic-bezier(.16,1,.3,1)';      // soft, expensive-looking settle
@@ -364,29 +365,30 @@ function typeIn(spanId, caretId, text, start, end, hideCaretAt) {
 // ===========================================================================
 // S1  HOOK 0.0–4.0 — impact open, then the contrast
 // ===========================================================================
-scene('s1', 0, 3.98, .12);
+scene('s1', 0, 5.28, .12);
 track('s1cal', [K(0, 0, 'scale(1.5)', 'ease-out'), K(.05, 0, 'scale(1.45)', 'ease-out'), K(.3, 1, 'scale(.8)', LIN),
-                K(1.95, 1, 'scale(.8)', 'ease-in'), K(2.15, 0, 'scale(.72) translateY(-60px)')]);
+                K(3.05, 1, 'scale(.8)', 'ease-in'), K(3.25, 0, 'scale(.72) translateY(-60px)')]);
 track('s1veil', [{ t: 0, opacity: '0' }, { t: .35, opacity: '0', ease: LIN }, { t: .7, opacity: '1' }], LIN);
-track('s1a', [K(0, 0, 'translateY(50px)'), K(.4, 0, 'translateY(50px)', SNAP), K(.75, 1, 'translateY(0px)', LIN),
-              K(1.95, 1, 'translateY(0px)', 'ease-in'), K(2.15, 0, 'translateY(-40px)')]);
-track('s1b', [K(0, 0, 'translateY(50px)'), K(.65, 0, 'translateY(50px)', SNAP), K(1.0, 1, 'translateY(0px)', LIN),
-              K(1.95, 1, 'translateY(0px)', 'ease-in'), K(2.15, 0, 'translateY(-40px)')]);
-track('s1k', [{ t: 1.1, opacity: '0' }, { t: 1.4, opacity: '1', ease: LIN }, { t: 1.95, opacity: '1', ease: LIN }, { t: 2.1, opacity: '0' }]);
-track('s1c', [K(0, 0, 'scale(1.6)'), K(2.15, 0, 'scale(1.6)', 'ease-out'), K(2.42, 1, 'scale(1)', 'ease-out'),
-              K(2.6, 1, 'scale(1.06)', 'ease-in-out'), K(2.8, 1, 'scale(1)')]);
-track('s1d', [K(0, 0, 'translateY(20px)'), K(2.55, 0, 'translateY(20px)'), K(2.9, 1, 'translateY(0px)')]);
-track('s1e', [K(0, 0, 'translateY(20px)'), K(3.0, 0, 'translateY(20px)'), K(3.4, 1, 'translateY(0px)')]);
+track('s1h', [{ t: .3, opacity: '0' }, { t: .55, opacity: '1', ease: LIN }, { t: 3.05, opacity: '1', ease: LIN }, { t: 3.2, opacity: '0' }]);
+track('s1a', [K(0, 0, 'translateY(50px)'), K(.45, 0, 'translateY(50px)', SNAP), K(.8, 1, 'translateY(0px)', LIN),
+              K(3.05, 1, 'translateY(0px)', 'ease-in'), K(3.25, 0, 'translateY(-40px)')]);
+track('s1b', [K(0, 0, 'translateY(50px)'), K(.75, 0, 'translateY(50px)', SNAP), K(1.1, 1, 'translateY(0px)', LIN),
+              K(3.05, 1, 'translateY(0px)', 'ease-in'), K(3.25, 0, 'translateY(-40px)')]);
+track('s1k', [{ t: 1.9, opacity: '0' }, { t: 2.2, opacity: '1', ease: LIN }, { t: 3.05, opacity: '1', ease: LIN }, { t: 3.2, opacity: '0' }]);
+track('s1c', [K(0, 0, 'scale(1.6)'), K(3.25, 0, 'scale(1.6)', 'ease-out'), K(3.52, 1, 'scale(1)', 'ease-out'),
+              K(3.7, 1, 'scale(1.06)', 'ease-in-out'), K(3.9, 1, 'scale(1)')]);
+track('s1d', [K(0, 0, 'translateY(20px)'), K(3.65, 0, 'translateY(20px)'), K(4.0, 1, 'translateY(0px)')]);
+track('s1e', [K(0, 0, 'translateY(20px)'), K(4.1, 0, 'translateY(20px)'), K(4.5, 1, 'translateY(0px)')]);
 document.getElementById('s1c').style.transformOrigin = 'left center';
 
 // ===========================================================================
-// S2  MYSPACE 4.2–9.1 — retro browser, dropdown cycling, all red
+// S2  MYSPACE 5.50–10.40 — retro browser, dropdown cycling, all red
 // ===========================================================================
-scene('s2', 4.2, 9.08);
-drift('s2', 4.2, 5.0, 1.0, 1.05);
-track('s2win', [K(0, 0, 'translateY(60px) scale(.96)'), K(4.25, 0, 'translateY(60px) scale(.96)', SNAP), K(4.85, 1, 'translateY(0px) scale(1)')]);
+scene('s2', 5.50, 10.38);
+drift('s2', 5.50, 5.0, 1.0, 1.05);
+track('s2win', [K(0, 0, 'translateY(60px) scale(.96)'), K(5.55, 0, 'translateY(60px) scale(.96)', SNAP), K(6.15, 1, 'translateY(0px) scale(1)')]);
 const BR = ['Downtown', 'Burnett Bayland', 'Spring Branch', 'Palm Center', 'Mickey Leland'];
-const SW = 5.6, GP = .62;
+const SW = 6.90, GP = .62;
 const s2wp = [K(0, 1, 'translateY(0px)')];
 for (let i = 1; i < BR.length; i++) {
   const at = SW + (i - 1) * GP;
@@ -398,17 +400,17 @@ seekHooks.push(t => {
   const i = Math.max(0, Math.min(BR.length - 1, Math.floor((t - SW + GP) / GP)));
   s2branch.textContent = BR[i]; s2title.textContent = i % 2 ? 'May 2026' : 'April 2026';
 });
-track('s2k', [{ t: 6.3, opacity: '0' }, { t: 6.6, opacity: '1' }]);
-track('s2t', [K(0, 0, 'translateY(28px)'), K(6.5, 0, 'translateY(28px)', SNAP), K(7.0, 1, 'translateY(0px)')]);
+track('s2k', [{ t: 7.60, opacity: '0' }, { t: 7.90, opacity: '1' }]);
+track('s2t', [K(0, 0, 'translateY(28px)'), K(7.80, 0, 'translateY(28px)', SNAP), K(8.30, 1, 'translateY(0px)')]);
 
 // ===========================================================================
-// S3  SOMEBODY 9.3–11.2 — a slot flashes open, then it's gone
+// S3  SOMEBODY 10.60–12.50 — a slot flashes open, then it's gone
 // ===========================================================================
-scene('s3', 9.3, 11.18);
-drift('s3', 9.3, 2.0, 1.0, 1.06);
-track('s3k', [{ t: 9.35, opacity: '0' }, { t: 9.6, opacity: '1' }]);
-track('s3cal', [K(0, 0, 'translateY(30px)'), K(9.3, 0, 'translateY(30px)'), K(9.65, 1, 'translateY(0px)')]);
-[[14, 9.75], [22, 10.2], [8, 10.65]].forEach(([d, at]) => {
+scene('s3', 10.60, 12.48);
+drift('s3', 10.60, 2.0, 1.0, 1.06);
+track('s3k', [{ t: 10.65, opacity: '0' }, { t: 10.90, opacity: '1' }]);
+track('s3cal', [K(0, 0, 'translateY(30px)'), K(10.60, 0, 'translateY(30px)'), K(10.95, 1, 'translateY(0px)')]);
+[[14, 11.05], [22, 11.50], [8, 11.95]].forEach(([d, at]) => {
   const cell = cal3.querySelector(`.rd[data-d="${d}"]`);
   track(cell, [{ t: 0, backgroundColor: '#E8473F', color: '#fff' },
                { t: at, backgroundColor: '#E8473F', color: '#fff', ease: LIN },
@@ -416,66 +418,66 @@ track('s3cal', [K(0, 0, 'translateY(30px)'), K(9.3, 0, 'translateY(30px)'), K(9.
                { t: at + .3, backgroundColor: '#ffffff', color: '#1a4fd6', ease: LIN },
                { t: at + .36, backgroundColor: '#E8473F', color: '#fff', ease: LIN }], LIN);
 });
-track('s3t', [K(0, 0, 'translateY(28px)'), K(10.3, 0, 'translateY(28px)', SNAP), K(10.75, 1, 'translateY(0px)')]);
+track('s3t', [K(0, 0, 'translateY(28px)'), K(11.60, 0, 'translateY(28px)', SNAP), K(12.05, 1, 'translateY(0px)')]);
 
 // ===========================================================================
-// S4  AI SCRIPT 11.4–16.8 — the prompt, then the code
+// S4  AI SCRIPT 12.70–18.10 — the prompt, then the code
 // ===========================================================================
-scene('s4', 11.4, 16.78);
-drift('s4', 11.4, 5.4, 1.0, 1.04);
-track('s4k', [{ t: 11.45, opacity: '0' }, { t: 11.75, opacity: '1' }]);
-track('s4bub', [K(0, 0, 'translateY(30px) scale(.96)'), K(11.5, 0, 'translateY(30px) scale(.96)', SNAP), K(11.95, 1, 'translateY(0px) scale(1)')]);
-typeIn('s4txt', 's4car', 'Write me a script that checks this page every 30 minutes and emails me when a date opens.', 11.95, 14.1, 14.4);
-track('s4term', [K(0, 0, 'translateY(46px) scale(.97)'), K(14.2, 0, 'translateY(46px) scale(.97)'), K(14.75, 1, 'translateY(0px) scale(1)')]);
+scene('s4', 12.70, 18.08);
+drift('s4', 12.70, 5.4, 1.0, 1.04);
+track('s4k', [{ t: 12.75, opacity: '0' }, { t: 13.05, opacity: '1' }]);
+track('s4bub', [K(0, 0, 'translateY(30px) scale(.96)'), K(12.80, 0, 'translateY(30px) scale(.96)', SNAP), K(13.25, 1, 'translateY(0px) scale(1)')]);
+typeIn('s4txt', 's4car', 'Write me a script that checks this page every 30 minutes and emails me when a date opens.', 13.25, 15.40, 15.70);
+track('s4term', [K(0, 0, 'translateY(46px) scale(.97)'), K(15.50, 0, 'translateY(46px) scale(.97)'), K(16.05, 1, 'translateY(0px) scale(1)')]);
 document.querySelectorAll('#s4term .mono > div').forEach((line, i) => {
-  const at = 14.55 + i * .22;
+  const at = 15.85 + i * .22;
   track(line, [K(0, 0, 'translateX(-14px)'), K(at, 0, 'translateX(-14px)', 'ease-out'), K(at + .24, 1, 'translateX(0px)')]);
 });
 ['s4c1', 's4c2', 's4c3'].forEach((id, i) => {
-  const at = 15.6 + i * .22;
+  const at = 16.90 + i * .22;
   track(id, [K(0, 0, 'translateY(24px)'), K(at, 0, 'translateY(24px)', SNAP), K(at + .4, 1, 'translateY(0px)')]);
   track(id, [{ t: at + .2, borderColor: '#2A3140', color: '#9AA3B2' }, { t: at + .5, borderColor: 'rgb(31,214,95)', color: 'rgb(31,214,95)' }], LIN);
 });
 
 // ===========================================================================
-// S5  PAYOFF 17.0–19.2 — the email, the tap, booked
+// S5  PAYOFF 18.30–20.50 — the email, the tap, booked
 // ===========================================================================
-scene('s5', 17.0, 19.18);
-drift('s5', 17.0, 2.3, 1.0, 1.05);
-track('s5k', [K(0, 0, 'translateY(16px)'), K(17.05, 0, 'translateY(16px)'), K(17.35, 1, 'translateY(0px)')]);
-track('s5mail', [K(0, 0, 'translateY(170px) scale(.94)'), K(17.1, 0, 'translateY(170px) scale(.94)', SNAP), K(17.7, 1, 'translateY(0px) scale(1)')]);
-track('s5cta', [K(0, 1, 'scale(1)'), K(18.05, 1, 'scale(1)', 'ease-out'), K(18.18, 1, 'scale(.93)', 'ease-in-out'), K(18.35, 1, 'scale(1)')]);
-track('s5done', [K(0, 0, 'translateY(30px)'), K(18.35, 0, 'translateY(30px)', SNAP), K(18.8, 1, 'translateY(0px)')]);
+scene('s5', 18.30, 20.48);
+drift('s5', 18.30, 2.3, 1.0, 1.05);
+track('s5k', [K(0, 0, 'translateY(16px)'), K(18.35, 0, 'translateY(16px)'), K(18.65, 1, 'translateY(0px)')]);
+track('s5mail', [K(0, 0, 'translateY(170px) scale(.94)'), K(18.40, 0, 'translateY(170px) scale(.94)', SNAP), K(19.00, 1, 'translateY(0px) scale(1)')]);
+track('s5cta', [K(0, 1, 'scale(1)'), K(19.35, 1, 'scale(1)', 'ease-out'), K(19.48, 1, 'scale(.93)', 'ease-in-out'), K(19.65, 1, 'scale(1)')]);
+track('s5done', [K(0, 0, 'translateY(30px)'), K(19.65, 0, 'translateY(30px)', SNAP), K(20.10, 1, 'translateY(0px)')]);
 
 // ===========================================================================
-// S6  BRIDGE 19.4–23.8 — from car story to their business
+// S6  BRIDGE 20.70–25.10 — from car story to their business
 // ===========================================================================
-scene('s6', 19.4, 23.78);
-drift('s6', 19.4, 4.4, 1.0, 1.04);
-track('s6a', [K(0, 0, 'translateY(40px)'), K(19.45, 0, 'translateY(40px)', SNAP), K(20.0, 1, 'translateY(0px)')]);
+scene('s6', 20.70, 25.08);
+drift('s6', 20.70, 4.4, 1.0, 1.04);
+track('s6a', [K(0, 0, 'translateY(40px)'), K(20.75, 0, 'translateY(40px)', SNAP), K(21.30, 1, 'translateY(0px)')]);
 document.getElementById('s6rule').style.transformOrigin = 'left';
-track('s6rule', [K(0, 0, 'scaleX(0)'), K(20.6, 0, 'scaleX(0)'), K(21.1, 1, 'scaleX(1)')]);
-track('s6b', [K(0, 0, 'translateY(28px)'), K(20.9, 0, 'translateY(28px)', SNAP), K(21.4, 1, 'translateY(0px)')]);
+track('s6rule', [K(0, 0, 'scaleX(0)'), K(21.90, 0, 'scaleX(0)'), K(22.40, 1, 'scaleX(1)')]);
+track('s6b', [K(0, 0, 'translateY(28px)'), K(22.20, 0, 'translateY(28px)', SNAP), K(22.70, 1, 'translateY(0px)')]);
 ['s6c1','s6c2','s6c3','s6c4','s6c5','s6c6'].forEach((id, i) => {
-  const at = 21.9 + i * .2;
+  const at = 23.20 + i * .2;
   track(id, [K(0, 0, 'translateY(20px)'), K(at, 0, 'translateY(20px)', SNAP), K(at + .35, 1, 'translateY(0px)')]);
 });
 
 // ===========================================================================
-// S7  CTA 24.0–28.75
+// S7  CTA 25.30–30.05
 // ===========================================================================
-scene('s7', 24.0, 28.75, .25);
-drift('s7', 24.0, 5.0, 1.0, 1.04);
-track('s7k', [{ t: 24.05, opacity: '0' }, { t: 24.35, opacity: '1' }]);
-track('s7a', [K(0, 0, 'translateY(40px)'), K(24.15, 0, 'translateY(40px)', SNAP), K(24.7, 1, 'translateY(0px)')]);
-track('s7dm', [K(0, 0, 'translateY(40px) scale(.96)'), K(24.9, 0, 'translateY(40px) scale(.96)', SNAP), K(25.4, 1, 'translateY(0px) scale(1)')]);
-typeIn('s7txt', 's7car', 'UNLOCK', 25.5, 26.2, 27.0);
-track('s7b', [K(0, 0, 'translateY(20px)'), K(26.3, 0, 'translateY(20px)'), K(26.7, 1, 'translateY(0px)')]);
-track('s7c', [{ t: 26.6, opacity: '0' }, { t: 26.95, opacity: '1' }]);
+scene('s7', 25.30, 29.75, .25);
+drift('s7', 25.30, 5.0, 1.0, 1.04);
+track('s7k', [{ t: 25.35, opacity: '0' }, { t: 25.65, opacity: '1' }]);
+track('s7a', [K(0, 0, 'translateY(40px)'), K(25.45, 0, 'translateY(40px)', SNAP), K(26.00, 1, 'translateY(0px)')]);
+track('s7dm', [K(0, 0, 'translateY(40px) scale(.96)'), K(26.20, 0, 'translateY(40px) scale(.96)', SNAP), K(26.70, 1, 'translateY(0px) scale(1)')]);
+typeIn('s7txt', 's7car', 'UNLOCK', 26.80, 27.50, 28.30);
+track('s7b', [K(0, 0, 'translateY(20px)'), K(27.60, 0, 'translateY(20px)'), K(28.00, 1, 'translateY(0px)')]);
+track('s7c', [{ t: 27.90, opacity: '0' }, { t: 28.25, opacity: '1' }]);
 
 // cut flashes
 const fwp = [{ t: 0, opacity: '0' }];
-[0.02, 2.13, 16.95].forEach(t => fwp.push({ t, opacity: '0', ease: LIN }, { t: t + .06, opacity: '.9', ease: LIN }, { t: t + .22, opacity: '0', ease: LIN }));
+[0.02, 3.25, 18.25].forEach(t => fwp.push({ t, opacity: '0', ease: LIN }, { t: t + .06, opacity: '.9', ease: LIN }, { t: t + .22, opacity: '0', ease: LIN }));
 track('flash', fwp, LIN);
 
 window.__duration = D;
